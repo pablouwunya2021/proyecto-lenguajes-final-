@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0d1117; --bg-secondary: #161b22; --bg-card: #1c2128;
+  --border: #30363d; --accent-purple: #7c3aed; --accent-teal: #0891b2;
+  --accent-green: #10b981; --text-primary: #e6edf3; --text-secondary: #8b949e;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; height: 100vh; overflow: hidden; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-purple); }
+.monaco-editor { border: none !important; }
+.monaco-editor .margin { background: var(--bg-secondary) !important; }
+
+@layer components {
+  .btn-primary { @apply px-4 py-2 bg-[#7c3aed] text-white rounded-lg hover:bg-purple-600 transition-all duration-200 font-medium text-sm flex items-center gap-2; }
+  .card { @apply bg-[#1c2128] border border-[#30363d] rounded-xl p-4; }
+}

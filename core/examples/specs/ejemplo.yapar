@@ -1,0 +1,27 @@
+// Gramática de ejemplo: expresiones aritméticas
+// Demuestra precedencia de operadores y paréntesis
+
+%token INT FLOAT ID PLUS MINUS TIMES DIV LPAREN RPAREN SEMICOLON
+%start program
+
+%%
+
+program : stmt_list
+
+stmt_list : stmt_list stmt
+          | stmt
+
+stmt : expr SEMICOLON
+
+expr : expr PLUS  term
+     | expr MINUS term
+     | term
+
+term : term TIMES factor
+     | term DIV   factor
+     | factor
+
+factor : LPAREN expr RPAREN
+       | INT
+       | FLOAT
+       | ID

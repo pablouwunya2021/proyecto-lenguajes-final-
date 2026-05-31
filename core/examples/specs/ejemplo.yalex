@@ -1,0 +1,21 @@
+(* Especificacion YALex de ejemplo *)
+{
+  let letter = [a-zA-Z_]
+  let digit  = [0-9]
+  let alnum  = [a-zA-Z0-9_]
+  let ws     = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    {letter}{alnum}*   { ID }
+  | {digit}+           { INT }
+  | {ws}+              { WHITESPACE }
+  | "="                { ASSIGN }
+  | ">="               { GEQ }
+  | "+"                { PLUS }
+  | "-"                { MINUS }
+  | "*"                { TIMES }
+  | "/"                { DIV }
+  | "("                { LPAREN }
+  | ")"                { RPAREN }
+  | ";"                { SEMICOLON }
