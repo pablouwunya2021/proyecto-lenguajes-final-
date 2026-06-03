@@ -43,7 +43,7 @@ std::vector<PathAnalysis> ConflictResolver::resolveAll(
                 }
             }
 
-            std::cout << "[Thread " << i << "] Conflicto analizado: "
+            std::cerr << "[Thread " << i << "] Conflicto analizado: "
                       << analysis.conflictDescription << "\n"
                       << "  → Sugerencia: " << analysis.reason << "\n";
         });
@@ -129,7 +129,7 @@ void ConflictResolver::applyResolutions(
     // Aquí podríamos forzar una estrategia diferente si se desea.
     // Por ahora logueamos las decisiones.
     for (size_t i = 0; i < conflicts.size() && i < analyses.size(); i++) {
-        std::cout << "[Resolver] " << analyses[i].reason << "\n";
+        std::cerr << "[Resolver] " << analyses[i].reason << "\n";
     }
 }
 

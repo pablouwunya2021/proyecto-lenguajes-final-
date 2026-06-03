@@ -181,6 +181,17 @@ build CMakeFiles/lenguajes_core.dir/src/yapar/parser.cpp.o: CXX_COMPILER__lengua
   TARGET_PDB = liblenguajes_core.pdb
   TARGET_SUPPORT_DIR = CMakeFiles/lenguajes_core.dir
 
+build CMakeFiles/lenguajes_core.dir/src/natural/qeqchi_translator.cpp.o: CXX_COMPILER__lenguajes_core_unscanned_Debug /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/src/natural/qeqchi_translator.cpp || cmake_object_order_depends_target_lenguajes_core
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles/lenguajes_core.dir/src/natural/qeqchi_translator.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -g -O0 -Wall -Wextra -Wno-unused-parameter
+  INCLUDES = -I/Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/include -isystem /opt/homebrew/include
+  OBJECT_DIR = CMakeFiles/lenguajes_core.dir
+  OBJECT_FILE_DIR = CMakeFiles/lenguajes_core.dir/src/natural
+  TARGET_COMPILE_PDB = CMakeFiles/lenguajes_core.dir/lenguajes_core.pdb
+  TARGET_PDB = liblenguajes_core.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles/lenguajes_core.dir
+
 
 # =============================================================================
 # Link build statements for STATIC_LIBRARY target lenguajes_core
@@ -189,7 +200,7 @@ build CMakeFiles/lenguajes_core.dir/src/yapar/parser.cpp.o: CXX_COMPILER__lengua
 #############################################
 # Link the static library liblenguajes_core.a
 
-build liblenguajes_core.a: CXX_STATIC_LIBRARY_LINKER__lenguajes_core_Debug CMakeFiles/lenguajes_core.dir/src/yalex/regex_engine.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/nfa.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/dfa.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/tokenizer.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/yalex_reader.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/grammar.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/lr0_automaton.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/slr1_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/ll1_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/lalr_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/conflict_resolver.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/parser.cpp.o
+build liblenguajes_core.a: CXX_STATIC_LIBRARY_LINKER__lenguajes_core_Debug CMakeFiles/lenguajes_core.dir/src/yalex/regex_engine.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/nfa.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/dfa.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/tokenizer.cpp.o CMakeFiles/lenguajes_core.dir/src/yalex/yalex_reader.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/grammar.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/lr0_automaton.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/slr1_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/ll1_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/lalr_table.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/conflict_resolver.cpp.o CMakeFiles/lenguajes_core.dir/src/yapar/parser.cpp.o CMakeFiles/lenguajes_core.dir/src/natural/qeqchi_translator.cpp.o
   ARCH_FLAGS = -arch arm64
   CONFIG = Debug
   LANGUAGE_COMPILE_FLAGS = -g
@@ -283,6 +294,47 @@ build yapar_cli: CXX_EXECUTABLE_LINKER__yapar_cli_Debug CMakeFiles/yapar_cli.dir
   TARGET_PDB = yapar_cli.pdb
   TARGET_SUPPORT_DIR = CMakeFiles/yapar_cli.dir
 
+# =============================================================================
+# Object build statements for EXECUTABLE target natural_cli
+
+
+#############################################
+# Order-only phony target for natural_cli
+
+build cmake_object_order_depends_target_natural_cli: phony || cmake_object_order_depends_target_lenguajes_core
+
+build CMakeFiles/natural_cli.dir/src/main_natural.cpp.o: CXX_COMPILER__natural_cli_unscanned_Debug /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/src/main_natural.cpp || cmake_object_order_depends_target_natural_cli
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles/natural_cli.dir/src/main_natural.cpp.o.d
+  FLAGS = -g -std=gnu++17 -arch arm64 -g -O0 -Wall -Wextra -Wno-unused-parameter
+  INCLUDES = -I/Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/include -isystem /opt/homebrew/include
+  OBJECT_DIR = CMakeFiles/natural_cli.dir
+  OBJECT_FILE_DIR = CMakeFiles/natural_cli.dir/src
+  TARGET_COMPILE_PDB = CMakeFiles/natural_cli.dir/
+  TARGET_PDB = natural_cli.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles/natural_cli.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target natural_cli
+
+
+#############################################
+# Link the executable natural_cli
+
+build natural_cli: CXX_EXECUTABLE_LINKER__natural_cli_Debug CMakeFiles/natural_cli.dir/src/main_natural.cpp.o | liblenguajes_core.a || liblenguajes_core.a
+  CONFIG = Debug
+  FLAGS = -g -arch arm64
+  LINK_FLAGS = -Wl,-search_paths_first -Wl,-headerpad_max_install_names
+  LINK_LIBRARIES = liblenguajes_core.a
+  OBJECT_DIR = CMakeFiles/natural_cli.dir
+  POST_BUILD = :
+  PRE_LINK = :
+  TARGET_COMPILE_PDB = CMakeFiles/natural_cli.dir/
+  TARGET_FILE = natural_cli
+  TARGET_PDB = natural_cli.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles/natural_cli.dir
+
 
 #############################################
 # Utility command for test
@@ -332,7 +384,7 @@ build lenguajes_core: phony liblenguajes_core.a
 #############################################
 # Folder: /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build
 
-build all: phony liblenguajes_core.a yalex_cli yapar_cli
+build all: phony liblenguajes_core.a yalex_cli yapar_cli natural_cli
 
 # =============================================================================
 # Built-in targets

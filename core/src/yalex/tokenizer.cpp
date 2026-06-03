@@ -15,27 +15,30 @@ void Tokenizer::loadSpec(const YAlexSpec& spec) {
     spec_ = spec; loaded_ = false;
     RegexParser regexParser(spec.macros);
     CombinedNFA combinedNFA;
-    std::cout << "[YALex] Procesando " << spec.rules.size() << " reglas...\n";
+    std::cerr << "[YALex] Procesando " << spec.rules.size() << " reglas...\n";
     for (const auto& rule : spec.rules) {
         try {
-            std::cout << "  [" << rule.priority << "] " << rule.tokenName << " = " << rule.pattern << "\n";
+            std::cerr << "  [" << rule.priority << "] " << rule.tokenName << " = " << rule.pattern << "\n";
             auto postfix = regexParser.parse(rule.pattern);
             NFA nfa; nfa.build(postfix, rule.tokenName);
             combinedNFA.addRule(std::move(nfa), rule.tokenName);
         } catch (const std::exception& e) {
-            throw std::runtime_error("Error en regla '" + rule.tokenName + "': " + e.what());
+            std::string loc = spec_.sourceFile.empty() ? "" : spec_.sourceFile + ":";
+            throw std::runtime_error(loc + std::to_string(rule.sourceLine) +
+                ": Error en regla '" + rule.tokenName +
+                "' (patron: " + rule.pattern + "): " + e.what());
         }
     }
-    std::cout << "[YALex] Combinando NFAs...\n";
+    std::cerr << "[YALex] Combinando NFAs...\n";
     NFA combined = combinedNFA.combine();
-    std::cout << "[YALex] Subset Construction...\n";
+    std::cerr << "[YALex] Subset Construction...\n";
     dfa_.buildFromNFA(combined);
-    std::cout << "  Sin minimizar: " << dfa_.getStates().size() << " estados\n";
-    std::cout << "[YALex] Minimizando (Hopcroft)...\n";
+    std::cerr << "  Sin minimizar: " << dfa_.getStates().size() << " estados\n";
+    std::cerr << "[YALex] Minimizando (Hopcroft)...\n";
     dfa_.minimize();
-    std::cout << "  Minimizado: " << dfa_.getStates().size() << " estados\n";
+    std::cerr << "  Minimizado: " << dfa_.getStates().size() << " estados\n";
     loaded_ = true;
-    std::cout << "[YALex] Listo!\n";
+    std::cerr << "[YALex] Listo!\n";
 }
 
 TokenizeResult Tokenizer::tokenize(const std::string& input, bool skipWhitespace) const {
@@ -52,7 +55,12 @@ TokenizeResult Tokenizer::tokenize(const std::string& input, bool skipWhitespace
             if (input[pos]=='\n') { line++; col=1; } else { col++; }
             pos++;
         } else {
-            if (!skipWhitespace || match->tokenName != "WHITESPACE")
+            // Filtrar tokens de skip: WHITESPACE (formato .yalex), __SKIP__
+            // (formato .yal) y SKIP (convención usada por algunas gramáticas).
+            bool isSkip = match->tokenName == "WHITESPACE" ||
+                          match->tokenName == "__SKIP__"   ||
+                          match->tokenName == "SKIP";
+            if (!skipWhitespace || !isSkip)
                 result.tokens.emplace_back(match->tokenName, match->lexeme, match->line, match->column);
         }
     }

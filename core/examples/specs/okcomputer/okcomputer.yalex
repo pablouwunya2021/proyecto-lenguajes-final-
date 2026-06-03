@@ -1,0 +1,44 @@
+(* ============================================================
+   okcomputer.yalex — Especificación léxica del lenguaje OK COMPUTER
+
+   OK COMPUTER es un lenguaje esotérico inspirado en COW y en el
+   álbum "OK Computer" (1997) de Radiohead. Opera sobre una cinta
+   de memoria infinita (celdas de enteros, inicializadas en 0) y
+   un puntero que apunta a la celda activa.
+
+   Tiene exactamente 12 instrucciones, cada una es una palabra
+   clave en mayúsculas separada por espacios/saltos de línea.
+
+   Instrucciones:
+     0  NOTOK    - fin de loop (salta al PARANOID correspondiente)
+     1  BACK     - mueve puntero una posición a la izquierda
+     2  OK       - mueve puntero una posición a la derecha
+     3  COMPUTER - ejecuta valor de celda actual como instrucción
+     4  KARMA    - leer char (celda=0) o imprimir char (celda≠0)
+     5  POLICE   - decrementa celda actual en 1
+     6  NOT      - incrementa celda actual en 1
+     7  PARANOID - inicio de loop (while celda ≠ 0)
+     8  ZERO     - pone celda actual a 0
+     9  GHOST    - copia/pega registro (copy-paste)
+    10  PRINT    - imprime celda actual como entero
+    11  READ     - lee un entero de STDIN a la celda actual
+============================================================ *)
+
+{
+  let ws = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "NOTOK"    { NOTOK }
+  | "BACK"     { BACK }
+  | "OK"       { OK }
+  | "COMPUTER" { COMPUTER }
+  | "KARMA"    { KARMA }
+  | "POLICE"   { POLICE }
+  | "NOT"      { NOT }
+  | "PARANOID" { PARANOID }
+  | "ZERO"     { ZERO }
+  | "GHOST"    { GHOST }
+  | "PRINT"    { PRINT }
+  | "READ"     { READ }
+  | {ws}+      { WHITESPACE }

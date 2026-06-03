@@ -178,6 +178,93 @@ std::optional<DFAMatch> DFA::nextMatch(
     return match;
 }
 
+// ════════════════════════════════════════════════════════════
+//  toDOT — genera un grafo en formato Graphviz DOT
+//
+//  Convenciones visuales formales:
+//  - Estado inicial:    flecha entrante desde un nodo invisible
+//  - Estados de aceptación: doble círculo (doublecircle)
+//  - Estados normales:  círculo simple
+//  - Transiciones con múltiples chars al mismo destino se agrupan
+//  - Layout de izquierda a derecha (rankdir=LR)
+// ════════════════════════════════════════════════════════════
+std::string DFA::toDOT(const std::string& title) const {
+    std::ostringstream d;
+
+    d << "digraph DFA {\n";
+    d << "  rankdir=LR;\n";
+    d << "  bgcolor=\"transparent\";\n";
+    d << "  fontname=\"Courier New\";\n";
+    if (!title.empty())
+        d << "  label=\"" << title << "\";\n"
+          << "  labelloc=t;\n"
+          << "  fontsize=14;\n"
+          << "  fontcolor=\"#cccccc\";\n";
+
+    // Nodo invisible para la flecha de estado inicial
+    d << "  __start [shape=point, style=invis, width=0.1];\n";
+
+    // Definir estados
+    for (const auto& s : states_) {
+        std::string shape = s.isAccepting ? "doublecircle" : "circle";
+        std::string label = "q" + std::to_string(s.id);
+        if (s.isAccepting && !s.tokenName.empty())
+            label += "\\n[" + s.tokenName + "]";
+
+        d << "  q" << s.id
+          << " [shape=" << shape
+          << ", label=\"" << label << "\""
+          << ", fontname=\"Courier New\""
+          << ", fontsize=10"
+          << ", style=filled"
+          << ", fillcolor=" << (s.isAccepting ? "\"#1a3d1a\"" : "\"#0d1a0d\"")
+          << ", color=" << (s.isAccepting ? "\"#00ff41\"" : "\"#1a5c1a\"")
+          << ", fontcolor=\"#00ff41\""
+          << "];\n";
+    }
+
+    // Flecha al estado inicial
+    d << "  __start -> q" << startState_
+      << " [color=\"#00ff41\", penwidth=2];\n";
+
+    // Agrupar transiciones paralelas (mismo origen y destino, distintos chars)
+    std::map<std::pair<int,int>, std::vector<char>> grouped;
+    for (const auto& s : states_)
+        for (const auto& [c, dest] : s.transitions)
+            grouped[{s.id, dest}].push_back(c);
+
+    for (const auto& [key, chars] : grouped) {
+        auto [from, to] = key;
+
+        // Construir etiqueta agrupada (máx 6 chars, luego "...")
+        std::string lbl;
+        size_t maxShow = std::min(chars.size(), (size_t)6);
+        for (size_t i = 0; i < maxShow; i++) {
+            if (i > 0) lbl += "|";
+            char c = chars[i];
+            if      (c == '"')  lbl += "\\\"";
+            else if (c == '\\') lbl += "\\\\";
+            else if (c == '\n') lbl += "\\\\n";
+            else if (c == '\r') lbl += "\\\\r";
+            else if (c == '\t') lbl += "\\\\t";
+            else if ((unsigned char)c < 32) lbl += "?";
+            else lbl += c;
+        }
+        if (chars.size() > 6) lbl += "|...";
+
+        d << "  q" << from << " -> q" << to
+          << " [label=\"" << lbl << "\""
+          << ", fontname=\"Courier New\""
+          << ", fontsize=9"
+          << ", color=\"#1a8c1a\""
+          << ", fontcolor=\"#44cc44\""
+          << "];\n";
+    }
+
+    d << "}\n";
+    return d.str();
+}
+
 std::string DFA::toJSON() const {
     std::ostringstream j;
     j << "{\n  \"states\": [\n";
@@ -194,9 +281,13 @@ std::string DFA::toJSON() const {
         for (const auto& [c, dest] : s.transitions) {
             if (!first) j << ",\n"; first = false;
             std::string lbl;
-            if (c=='"') lbl="\\\""; else if (c=='\\') lbl="\\\\";
-            else if (c=='\n') lbl="\\n"; else if (c=='\t') lbl="\\t";
-            else lbl = std::string(1,c);
+            if      (c == '"')  lbl = "\\\"";
+            else if (c == '\\') lbl = "\\\\";
+            else if (c == '\n') lbl = "\\n";
+            else if (c == '\r') lbl = "\\r";
+            else if (c == '\t') lbl = "\\t";
+            else if ((unsigned char)c < 32) lbl = "?"; // otros control chars
+            else lbl = std::string(1, c);
             j << "    {\"from\":" << s.id << ",\"to\":" << dest << ",\"label\":\"" << lbl << "\"}";
         }
     }

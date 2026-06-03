@@ -1,0 +1,143 @@
+// Gramatica C++ simplificada — sin conflictos SLR/LALR
+// Asignacion: derecho-recursiva (a = b = c se agrupa a la derecha)
+// Dangling-else: resuelto con matched_stmt / open_stmt
+
+%token INT_TYPE FLOAT_TYPE DOUBLE_TYPE CHAR_TYPE BOOL_TYPE VOID_TYPE
+%token IF ELSE WHILE FOR RETURN TRUE FALSE
+%token ID INT_LIT FLOAT_LIT CHAR_LIT STRING_LIT
+%token EQ NEQ LEQ GEQ LT GT AND OR NOT
+%token ASSIGN PLUS_ASSIGN MINUS_ASSIGN INCREMENT DECREMENT
+%token PLUS MINUS TIMES DIV MOD
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+%token SEMICOLON COMMA
+
+%start program
+
+%%
+
+program : decl_list
+
+decl_list : decl_list decl
+          | decl
+
+decl : func_decl
+     | var_decl
+
+type : INT_TYPE
+     | FLOAT_TYPE
+     | DOUBLE_TYPE
+     | CHAR_TYPE
+     | BOOL_TYPE
+     | VOID_TYPE
+
+func_decl : type ID LPAREN param_list RPAREN block
+          | type ID LPAREN RPAREN block
+
+param_list : param_list COMMA param
+           | param
+
+param : type ID
+
+var_decl : type ID SEMICOLON
+         | type ID ASSIGN expr SEMICOLON
+         | type ID LBRACKET INT_LIT RBRACKET SEMICOLON
+
+block : LBRACE stmt_list RBRACE
+      | LBRACE RBRACE
+
+stmt_list : stmt_list stmt
+          | stmt
+
+// Separar stmt en matched (sin if abierto) y open (con if sin else)
+// evita el conflicto dangling-else
+stmt : matched_stmt
+     | open_stmt
+
+matched_stmt : expr_stmt
+             | var_decl
+             | while_stmt_m
+             | for_stmt_m
+             | return_stmt
+             | block
+             | IF LPAREN expr RPAREN matched_stmt ELSE matched_stmt
+
+open_stmt : IF LPAREN expr RPAREN stmt
+          | IF LPAREN expr RPAREN matched_stmt ELSE open_stmt
+          | while_stmt_o
+          | for_stmt_o
+
+while_stmt_m : WHILE LPAREN expr RPAREN matched_stmt
+while_stmt_o : WHILE LPAREN expr RPAREN open_stmt
+
+for_stmt_m : FOR LPAREN for_init expr SEMICOLON expr RPAREN matched_stmt
+           | FOR LPAREN for_init expr SEMICOLON RPAREN matched_stmt
+for_stmt_o : FOR LPAREN for_init expr SEMICOLON expr RPAREN open_stmt
+           | FOR LPAREN for_init expr SEMICOLON RPAREN open_stmt
+
+for_init : var_decl
+         | expr_stmt
+
+return_stmt : RETURN expr SEMICOLON
+            | RETURN SEMICOLON
+
+expr_stmt : expr SEMICOLON
+
+// Expresiones — precedencia de menor a mayor:
+// asignacion (derecho-recursiva) < or < and < igualdad < relacional
+// < suma < multiplicacion < unario < postfijo < primario
+//
+// La asignacion es derecho-recursiva: "logic_or ASSIGN expr" (no expr ASSIGN expr)
+// Esto elimina la ambiguedad: el lado izquierdo de = nunca es otro =
+
+expr : logic_or ASSIGN      expr
+     | logic_or PLUS_ASSIGN  expr
+     | logic_or MINUS_ASSIGN expr
+     | logic_or
+
+logic_or : logic_or OR logic_and
+         | logic_and
+
+logic_and : logic_and AND equality
+          | equality
+
+equality : equality EQ  relational
+         | equality NEQ relational
+         | relational
+
+relational : relational LT  additive
+           | relational GT  additive
+           | relational LEQ additive
+           | relational GEQ additive
+           | additive
+
+additive : additive PLUS  term
+         | additive MINUS term
+         | term
+
+term : term TIMES unary
+     | term DIV   unary
+     | term MOD   unary
+     | unary
+
+unary : NOT unary
+      | MINUS unary
+      | INCREMENT postfix
+      | DECREMENT postfix
+      | postfix
+
+postfix : postfix INCREMENT
+        | postfix DECREMENT
+        | postfix LBRACKET expr RBRACKET
+        | postfix LPAREN arg_list RPAREN
+        | postfix LPAREN RPAREN
+        | primary
+
+primary : ID
+        | INT_LIT
+        | FLOAT_LIT
+        | TRUE
+        | FALSE
+        | LPAREN expr RPAREN
+
+arg_list : arg_list COMMA expr
+         | expr

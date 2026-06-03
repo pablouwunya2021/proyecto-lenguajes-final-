@@ -1,0 +1,59 @@
+(* YALex para Lua simplificado *)
+{
+  let letter = [a-zA-Z_]
+  let digit  = [0-9]
+  let alnum  = [a-zA-Z0-9_]
+  let ws     = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "function"  { FUNCTION }
+  | "end"       { END }
+  | "if"        { IF }
+  | "then"      { THEN }
+  | "elseif"    { ELSEIF }
+  | "else"      { ELSE }
+  | "while"     { WHILE }
+  | "do"        { DO }
+  | "for"       { FOR }
+  | "in"        { IN }
+  | "repeat"    { REPEAT }
+  | "until"     { UNTIL }
+  | "local"     { LOCAL }
+  | "return"    { RETURN }
+  | "break"     { BREAK }
+  | "and"       { AND }
+  | "or"        { OR }
+  | "not"       { NOT }
+  | "nil"       { NIL }
+  | "true"      { TRUE }
+  | "false"     { FALSE }
+  | {letter}{alnum}* { ID }
+  | {digit}+'.'{digit}+ { FLOAT_LIT }
+  | {digit}+    { INT_LIT }
+  | "~="        { NEQ }
+  | "=="        { EQ }
+  | "<="        { LEQ }
+  | ">="        { GEQ }
+  | ".."        { CONCAT }
+  | "="         { ASSIGN }
+  | "<"         { LT }
+  | ">"         { GT }
+  | "+"         { PLUS }
+  | "-"         { MINUS }
+  | "*"         { TIMES }
+  | "/"         { DIV }
+  | "%"         { MOD }
+  | "^"         { POW }
+  | "#"         { LEN }
+  | "("         { LPAREN }
+  | ")"         { RPAREN }
+  | "{"         { LBRACE }
+  | "}"         { RBRACE }
+  | "["         { LBRACKET }
+  | "]"         { RBRACKET }
+  | ";"         { SEMICOLON }
+  | ","         { COMMA }
+  | "."         { DOT }
+  | ":"         { COLON }
+  | {ws}+       { WHITESPACE }

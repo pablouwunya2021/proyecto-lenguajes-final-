@@ -1,0 +1,61 @@
+// ============================================================
+// messi.yapar — Gramática sintáctica de MessiScript
+//
+// Un programa MessiScript tiene esta estructura:
+//   START . stmt . stmt . ... . END_PROG
+//
+// El punto (.) es un TERMINADOR: cada sentencia termina en
+// punto. Tras el START inicial viene el primer punto y luego
+// una lista de "sentencia ." hasta llegar a END_PROG ("gol").
+// Modelar el punto como terminador (y no como separador)
+// elimina el conflicto shift/reduce de "lista con separador".
+//
+// Loop:
+//   LOOP_BEGIN . stmt . stmt . ... LOOP_END
+//   Si posición actual == 0 → salta al LOOP_END
+//   Si no → ejecuta el cuerpo y vuelve al LOOP_BEGIN
+// ============================================================
+
+%token START END_PROG DOT
+%token PRINT_CHAR PRINT_INT MOVE_RIGHT MOVE_LEFT
+%token ZERO_POS LOOP_BEGIN LOOP_END COPY_CLIP PASTE_CLIP
+%token READ_INT READ_CHAR ASSIGN_BEGIN GOAL_PREFIX
+%token NOUN ADJECTIVE CHANGE_SIGN WORD WHITESPACE PUNCT COMMA
+
+%start program
+
+%%
+
+program : START DOT stmt_list END_PROG
+        | START DOT stmt_list GOAL_PREFIX END_PROG
+
+stmt_list : stmt_list stmt DOT
+          | stmt DOT
+
+stmt : simple_cmd
+     | assign_cmd
+     | loop_cmd
+
+simple_cmd : PRINT_CHAR
+           | PRINT_INT
+           | MOVE_RIGHT
+           | MOVE_LEFT
+           | ZERO_POS
+           | COPY_CLIP
+           | PASTE_CLIP
+           | READ_INT
+           | READ_CHAR
+
+assign_cmd : ASSIGN_BEGIN sentence
+           | ASSIGN_BEGIN COMMA sentence
+
+sentence : sentence value_word
+         | value_word
+
+value_word : NOUN
+           | ADJECTIVE
+           | CHANGE_SIGN
+           | WORD
+           | PUNCT
+
+loop_cmd : LOOP_BEGIN DOT stmt_list LOOP_END

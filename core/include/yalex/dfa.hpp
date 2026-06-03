@@ -42,6 +42,7 @@ public:
     const std::vector<DFAState>& getStates() const { return states_; }
 
     std::string toJSON() const;
+    std::string toDOT(const std::string& title = "DFA") const;
     void        print() const;
 
 private:

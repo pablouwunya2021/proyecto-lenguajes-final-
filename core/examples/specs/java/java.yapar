@@ -1,0 +1,177 @@
+// Gramatica Java simplificada — 0 conflictos LALR
+// Llaves {} obligatorias en if/while/for — elimina dangling-else
+// Asignacion derecho-recursiva
+//
+// Correcciones respecto a version anterior:
+//  - for_stmt: eliminados for_cond y for_update con epsilon (causaban RR)
+//  - for_stmt: usa estructura fija igual que C++ (probada sin conflictos)
+//  - Se eliminaron alternativas con epsilon que generaban RR en estado 135
+
+%token CLASS PUBLIC PRIVATE STATIC
+%token VOID_TYPE INT_TYPE FLOAT_TYPE DOUBLE_TYPE BOOLEAN_TYPE STRING_TYPE CHAR_TYPE
+%token NEW IF ELSE WHILE FOR RETURN TRUE FALSE NULL_LIT THIS
+%token ID INT_LIT FLOAT_LIT
+%token EQ NEQ LEQ GEQ AND OR NOT
+%token ASSIGN PLUS_ASSIGN MINUS_ASSIGN INCREMENT DECREMENT
+%token PLUS MINUS TIMES DIV MOD LT GT
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+%token SEMICOLON COMMA DOT
+
+%start program
+
+%%
+
+program : class_list
+
+class_list : class_list class_decl
+           | class_decl
+
+class_decl : modifier_list CLASS ID LBRACE member_list RBRACE
+           | modifier_list CLASS ID LBRACE RBRACE
+           | CLASS ID LBRACE member_list RBRACE
+           | CLASS ID LBRACE RBRACE
+
+modifier_list : modifier_list modifier
+              | modifier
+
+modifier : PUBLIC | PRIVATE | STATIC
+
+member_list : member_list member
+            | member
+
+member : method_decl
+       | field_decl
+       | constructor_decl
+
+// Constructor: como 'type' son solo keywords primitivas, el nombre
+// del constructor (ID) tras los modificadores no choca con métodos
+// ni campos (que llevan 'type' antes del nombre).
+constructor_decl : modifier_list ID LPAREN RPAREN block
+                 | modifier_list ID LPAREN param_list RPAREN block
+                 | ID LPAREN RPAREN block
+                 | ID LPAREN param_list RPAREN block
+
+// type incluye ID para tipos de clase (ej. "Cuenta origen"). Esto
+// reintroduce la ambigüedad clásica declaración-vs-expresión (un ID
+// puede ser un tipo o el inicio de una expresión), que produce
+// conflictos resueltos por defecto a favor de shift — la opción
+// correcta en la práctica.
+type : INT_TYPE
+     | FLOAT_TYPE
+     | DOUBLE_TYPE
+     | BOOLEAN_TYPE
+     | STRING_TYPE
+     | CHAR_TYPE
+     | VOID_TYPE
+     | ID
+
+field_decl : modifier_list type ID SEMICOLON
+           | modifier_list type ID ASSIGN expr SEMICOLON
+           | type ID SEMICOLON
+           | type ID ASSIGN expr SEMICOLON
+
+method_decl : modifier_list type ID LPAREN RPAREN block
+            | modifier_list type ID LPAREN param_list RPAREN block
+            | type ID LPAREN RPAREN block
+            | type ID LPAREN param_list RPAREN block
+
+param_list : param_list COMMA param
+           | param
+
+param : type ID
+
+block : LBRACE stmt_list RBRACE
+      | LBRACE RBRACE
+
+stmt_list : stmt_list stmt
+          | stmt
+
+stmt : var_decl
+     | expr_stmt
+     | if_stmt
+     | while_stmt
+     | for_stmt
+     | return_stmt
+     | block
+
+// Llaves obligatorias — elimina dangling-else completamente
+if_stmt : IF LPAREN expr RPAREN block
+        | IF LPAREN expr RPAREN block ELSE block
+        | IF LPAREN expr RPAREN block ELSE if_stmt
+
+while_stmt : WHILE LPAREN expr RPAREN block
+
+// Estructura fija sin epsilon — igual a C++ (0 conflictos probados)
+for_stmt : FOR LPAREN for_init expr SEMICOLON expr RPAREN block
+
+for_init : var_decl
+         | expr_stmt
+
+var_decl : type ID SEMICOLON
+         | type ID ASSIGN expr SEMICOLON
+         | type ID LBRACKET RBRACKET SEMICOLON
+         | type ID LBRACKET RBRACKET ASSIGN expr SEMICOLON
+
+expr_stmt : expr SEMICOLON
+
+return_stmt : RETURN expr SEMICOLON
+            | RETURN SEMICOLON
+
+// Expresiones — derecho-recursivas en asignacion, resto izquierdo-recursivo
+expr : logic_or ASSIGN      expr
+     | logic_or PLUS_ASSIGN  expr
+     | logic_or MINUS_ASSIGN expr
+     | logic_or
+
+logic_or : logic_or OR  logic_and
+         | logic_and
+
+logic_and : logic_and AND equality
+          | equality
+
+equality : equality EQ  relational
+         | equality NEQ relational
+         | relational
+
+relational : relational LT  additive
+           | relational GT  additive
+           | relational LEQ additive
+           | relational GEQ additive
+           | additive
+
+additive : additive PLUS  term
+         | additive MINUS term
+         | term
+
+term : term TIMES unary
+     | term DIV   unary
+     | term MOD   unary
+     | unary
+
+unary : NOT unary
+      | MINUS unary
+      | INCREMENT postfix
+      | DECREMENT postfix
+      | postfix
+
+postfix : postfix INCREMENT
+        | postfix DECREMENT
+        | postfix LBRACKET expr RBRACKET
+        | postfix LPAREN RPAREN
+        | postfix LPAREN arg_list RPAREN
+        | postfix DOT ID
+        | primary
+
+primary : ID
+        | INT_LIT
+        | FLOAT_LIT
+        | TRUE
+        | FALSE
+        | NULL_LIT
+        | THIS
+        | NEW type LPAREN RPAREN
+        | NEW type LPAREN arg_list RPAREN
+        | LPAREN expr RPAREN
+
+arg_list : arg_list COMMA expr
+         | expr

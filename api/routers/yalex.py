@@ -1,67 +1,55 @@
 # ============================================================
 #  routers/yalex.py — Endpoints del analizador léxico
 # ============================================================
-
 import subprocess, json, tempfile, os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
 
-# Ruta al binario compilado (relativa al api/)
 CORE_BUILD = os.path.join(os.path.dirname(__file__), "../../core/build")
 YALEX_CLI  = os.path.join(CORE_BUILD, "yalex_cli")
-SPECS_DIR  = os.path.join(os.path.dirname(__file__), "../../core/examples/specs")
 
 class YAlexRequest(BaseModel):
-    yalex_content: str   # Contenido del archivo .yalex
-    input_text:    str   # Texto a tokenizar
-
-class YAlexFileRequest(BaseModel):
-    yalex_filename: str  # Nombre de archivo predefinido (ejemplo.yalex)
-    input_text:     str
+    yalex_content: str
+    input_text:    str
 
 @router.post("/analyze")
 def analyze(req: YAlexRequest):
     """
-    Recibe el contenido de un .yalex y un texto a tokenizar.
-    Escribe el .yalex en un archivo temporal, llama yalex_cli y devuelve el JSON.
+    Escribe .yalex e input en archivos temporales (evita problemas con
+    caracteres especiales y saltos de línea en argumentos shell).
     """
-    # Escribimos el .yalex en un archivo temporal
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yalex',
-                                     delete=False) as f:
-        f.write(req.yalex_content)
-        yalex_path = f.name
-
+    yalex_path = None
+    input_path = None
     try:
+        # Archivo temporal para el .yalex
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yalex',
+                                         delete=False, encoding='utf-8') as f:
+            f.write(req.yalex_content)
+            yalex_path = f.name
+
+        # Archivo temporal para el input (evita problemas con --string y saltos de línea)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt',
+                                         delete=False, encoding='utf-8') as f:
+            f.write(req.input_text)
+            input_path = f.name
+
         result = subprocess.run(
-            [YALEX_CLI, yalex_path, "--string", req.input_text],
+            [YALEX_CLI, yalex_path, input_path],
             capture_output=True, text=True, timeout=30
         )
-        # El binario imprime logs a stderr y JSON a stdout
-        if result.returncode != 0 and not result.stdout:
-            raise HTTPException(status_code=400,
-                                detail=result.stderr or "Error en yalex_cli")
-        return json.loads(result.stdout)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500,
-                            detail="Respuesta inválida del core")
+
+        raw = result.stdout.strip()
+        if not raw:
+            raise HTTPException(400, result.stderr or "Sin respuesta del core")
+
+        return json.loads(raw)
+
+    except json.JSONDecodeError as e:
+        raise HTTPException(500, f"JSON invalido del core: {str(e)}")
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=408, detail="Timeout")
+        raise HTTPException(408, "Timeout")
     finally:
-        os.unlink(yalex_path)
-
-@router.get("/examples")
-def list_examples():
-    """Lista los archivos .yalex de ejemplo disponibles"""
-    files = [f for f in os.listdir(SPECS_DIR) if f.endswith('.yalex')]
-    return {"files": files}
-
-@router.get("/example/{filename}")
-def get_example(filename: str):
-    """Devuelve el contenido de un archivo .yalex de ejemplo"""
-    path = os.path.join(SPECS_DIR, filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
-    with open(path) as f:
-        return {"content": f.read(), "filename": filename}
+        if yalex_path and os.path.exists(yalex_path): os.unlink(yalex_path)
+        if input_path and os.path.exists(input_path): os.unlink(input_path)

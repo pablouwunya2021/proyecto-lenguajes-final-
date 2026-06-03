@@ -1,0 +1,54 @@
+class Calculadora:
+    def init(valor):
+        self.resultado = valor
+    end
+
+    def sumar(n):
+        self.resultado = self.resultado + n
+        return self.resultado
+    end
+
+    def restar(n):
+        self.resultado = self.resultado - n
+        return self.resultado
+    end
+
+    def multiplicar(n):
+        self.resultado = self.resultado * n
+        return self.resultado
+    end
+
+    def reset():
+        self.resultado = 0
+    end
+end
+
+def aplicar_lista(lista, factor):
+    i = 0
+    acum = 0
+    while i < factor:
+        acum = acum + lista
+        i = i + 1
+    end
+    return acum
+end
+
+def buscar_max(coleccion, limite):
+    maximo = 0
+    for elem in coleccion:
+        if elem > maximo:
+            if elem < limite:
+                maximo = elem
+            end
+        end
+    end
+    return maximo
+end
+
+calc = Calculadora
+x = calc.sumar(10)
+y = calc.multiplicar(3)
+z = calc.restar(5)
+
+resultado = aplicar_lista(items, 4)
+maximo = buscar_max(datos, 100)

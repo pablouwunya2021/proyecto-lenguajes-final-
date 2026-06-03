@@ -1,0 +1,67 @@
+// ============================================================
+// okcomputer.yapar — Gramática sintáctica del lenguaje OK COMPUTER
+//
+// Un programa OK COMPUTER es una secuencia de instrucciones
+// separadas por espacios o saltos de línea (WHITESPACE).
+//
+// Modelo de ejecución (igual que COW):
+//   - Memoria: cinta infinita de celdas enteras (inician en 0)
+//   - Puntero p: apunta a la celda activa (inicia en 0)
+//   - Registro r: almacén temporal (inicia vacío)
+//   - Loops: PARANOID...NOTOK forman un while-loop
+//       PARANOID: si celda[p] ≠ 0 → entra al loop
+//                 si celda[p] = 0 → salta al NOTOK correspondiente
+//       NOTOK:    vuelve al PARANOID correspondiente y re-evalúa
+//
+// Correspondencia con COW:
+//   OK COMPUTER | COW  | Código
+//   ------------|------|-------
+//   NOTOK       | moo  |  0
+//   BACK        | mOo  |  1
+//   OK          | moO  |  2
+//   COMPUTER    | mOO  |  3
+//   KARMA       | Moo  |  4
+//   POLICE      | MOo  |  5
+//   NOT         | MoO  |  6
+//   PARANOID    | MOO  |  7
+//   ZERO        | OOO  |  8
+//   GHOST       | MMM  |  9
+//   PRINT       | OOM  | 10
+//   READ        | oom  | 11
+//
+// Ejemplo: incrementar 3 veces e imprimir como entero:
+//   NOT NOT NOT PRINT
+//
+// Ejemplo: loop que cuenta de 5 a 1 imprimiendo cada valor:
+//   NOT NOT NOT NOT NOT PARANOID PRINT POLICE NOTOK
+//
+// Ejemplo: leer un char y reimprimirlo:
+//   ZERO KARMA KARMA
+// ============================================================
+
+%token NOTOK BACK OK COMPUTER KARMA POLICE NOT
+%token PARANOID ZERO GHOST PRINT READ WHITESPACE
+%start program
+
+%%
+
+program : instr_list
+
+instr_list : instr_list sep instr
+           | instr_list instr
+           | instr
+
+sep : WHITESPACE
+
+instr : PARANOID
+      | NOTOK
+      | BACK
+      | OK
+      | COMPUTER
+      | KARMA
+      | POLICE
+      | NOT
+      | ZERO
+      | GHOST
+      | PRINT
+      | READ

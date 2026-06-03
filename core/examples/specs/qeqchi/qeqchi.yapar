@@ -1,0 +1,352 @@
+// ============================================================
+// qeqchi.yapar — Gramática del idioma Q'eqchi'
+//
+// Orden base: Verbo-Sujeto-Objeto (VSO)
+// El Q'eqchi' también admite tópico frontal y vocativo.
+//
+// Tipos de oración:
+//   1. Existencial      "Wan li tenamit."
+//   2. Verbal           "Xik li winq sa' li tenamit."
+//   3. Copular          "Laa'in aj k'anjel."
+//   4. Negativa         "Ink'a' xik li winq."
+//   5. Interrogativa    "B'ar wan li winq?"
+//   6. Vocativa         "Laatz'in, chaakuy inmaak!"
+//   7. Exclamativa      "Sa li tib'!"
+//   8. Imperativa       "Tz'ap laahu."
+//   9. Progresiva       "Yookin chi musiq'ak."
+//  10. Compuesta        "Xik li winq ut xil li ixq."
+// ============================================================
+
+// ── Tokens funcionales ───────────────────────────────────────
+%token ART PLURAL_MARK LOC_IN LOC_WITH PREP_FOR PREP_TO PREP_ABOUT
+%token PREP_WITH_INST
+%token CONJ_AND CONJ_BUT CONJ_HOWEVER CONJ_WHEN
+%token COMP_THAT ADV_LIKE
+
+// ── Adverbios ────────────────────────────────────────────────
+%token ADV_NOW ADV_THERE ADV_HERE ADV_ALL ADV_THANKS ADV_ALSO
+%token ADV_ALREADY ADV_NOT_YET ADV_PRESENT ADV_TOMORROW ADV_YESTERDAY
+%token ADV_WHEN ADV_WHERE ADV_WHO ADV_HOW_MANY ADV_VERY
+%token ADV_EVERYONE ADV_EACH ADV_ALWAYS ADV_BEFORE
+
+// ── Interrogativos ───────────────────────────────────────────
+%token INTERROG_WHAT INTERROG_HOW INTERROG_WHY INTERROG_WHO INTERROG_PART
+
+// ── Verbos ───────────────────────────────────────────────────
+%token VERB_EXIST VERB_WORK VERB_DO VERB_GO VERB_ARRIVE VERB_CURE VERB_SEE
+%token VERB_TEACH VERB_FIND VERB_BUY VERB_SELL VERB_GIVE VERB_HEAR
+%token VERB_WRITE VERB_KNOW VERB_SPEAK VERB_WANT VERB_PLANT VERB_BATHE
+%token VERB_WRAP VERB_PLAY VERB_FOLD VERB_DIG VERB_TRAVEL VERB_THANK
+%token VERB_SCARE VERB_HIDE VERB_TURN VERB_DELAY VERB_KILL VERB_SING
+%token VERB_PAINT VERB_SEW VERB_INVITE VERB_MEASURE VERB_CARRY VERB_WALK
+%token VERB_GUIDE VERB_COUNT VERB_TIE VERB_SLIM VERB_UNDO VERB_DECEIVE
+%token VERB_ENRICH VERB_RUN VERB_TRANSLATE VERB_SAY VERB_DIE VERB_BORN
+%token VERB_CHANGE VERB_COMPLETE VERB_CALL VERB_LOVE VERB_RECEIVE VERB_GATHER
+%token VERB_EAT VERB_FORGIVE VERB_HIT VERB_SIT VERB_CUT VERB_FALL
+%token VERB_BREATHE VERB_WASH VERB_CLOSE VERB_FINISH VERB_JUMP VERB_SEND
+%token VERB_EXPLAIN VERB_VISIT VERB_APPEAR VERB_BELIEVE VERB_RESPECT
+%token VERB_CRASH VERB_HURT VERB_PASS VERB_FIND_MEET VERB_SEARCH
+%token VERB_ATTEND VERB_FEEL
+
+// ── Pronombres ───────────────────────────────────────────────
+%token PRON_1S PRON_2S PRON_3S PRON_1PL PRON_2PL PRON_3PL
+
+// ── Marcadores ───────────────────────────────────────────────
+%token COMP_ASPECT NEG MASC_MARK
+
+// ── Sustantivos ──────────────────────────────────────────────
+%token NOUN_WORD NOUN_LANGUAGE NOUN_TOWN NOUN_COMMUNITY NOUN_HOUSE
+%token NOUN_RIVER NOUN_LAND NOUN_SCHOOL NOUN_TEACHER NOUN_PEOPLE
+%token NOUN_PERSON NOUN_WOMAN NOUN_CHILD NOUN_WORK NOUN_MONEY
+%token NOUN_COW NOUN_DOG NOUN_CORN NOUN_WATER NOUN_DAY NOUN_MORNING
+%token NOUN_HAMMOCK NOUN_MEAT NOUN_SPIDER NOUN_LIZARD NOUN_FROG
+%token NOUN_GHOST NOUN_PIG NOUN_SALT NOUN_FLOWER NOUN_ROAD NOUN_BONE
+%token NOUN_BANANA NOUN_GLASS NOUN_STICK NOUN_CLOTHES NOUN_MONKEY
+%token NOUN_GOD NOUN_FRUIT NOUN_SOUL NOUN_FISH NOUN_TREE NOUN_MEDICINE
+%token NOUN_FIRE NOUN_DARKNESS NOUN_RAIN NOUN_SUN NOUN_MOON NOUN_STAR
+%token NOUN_BIRD NOUN_JAGUAR NOUN_DEER NOUN_HORSE NOUN_CAT NOUN_HEAD
+%token NOUN_HAND NOUN_FOOT NOUN_FEAR NOUN_MIND NOUN_HEART NOUN_WORKSHOP
+%token NOUN_STONE NOUN_SONG NOUN_PAINT NOUN_CHICHA NOUN_BALL NOUN_HUSBAND
+%token NOUN_WEALTH NOUN_HAT NOUN_MEASURE NOUN_SCALE NOUN_HOSPITAL NOUN_FIELD
+%token NOUN_TOY NOUN_LIE NOUN_OXEN NOUN_VEHICLE NOUN_MARKET NOUN_MOUNTAIN
+%token NOUN_FOREST NOUN_SIN NOUN_BEAN NOUN_FOOD NOUN_LAW NOUN_OFFICE
+%token NOUN_PRISON NOUN_HOLE NOUN_CLOUD NOUN_WASP NOUN_ANT NOUN_ANIMAL
+%token NOUN_MOUTH NOUN_MOTHER NOUN_FATHER NOUN_ORANGE NOUN_SHOE NOUN_SHIRT
+%token NOUN_MILPA NOUN_WELL NOUN_TABLE NOUN_HONEY NOUN_SELF NOUN_HILL
+%token NOUN_SMOKE NOUN_MUD NOUN_WORLD NOUN_SUFFERING NOUN_GOODNESS
+%token NOUN_CALCULATOR NOUN_HYMNAL NOUN_BACK NOUN_TIGER NOUN_OPOSSUM
+%token NOUN_OWL NOUN_PIGLET NOUN_MOUNTAIN_JUNGLE NOUN_NOON
+%token NOUN_CHICKEN NOUN_FIREWOOD NOUN_ROPE NOUN_NAME NOUN_PENCIL
+%token NOUN_PAPER NOUN_HAIR NOUN_BABY NOUN_MEETING NOUN_WEEKEND NOUN_POT
+%token NOUN_CANDY NOUN_CAR NOUN_MOTORCYCLE NOUN_PLANE NOUN_CHAIR NOUN_DESK
+%token NOUN_MISTER NOUN_MISSIS NOUN_LOVE NOUN_GIRL NOUN_BOY NOUN_CLOTH
+%token NOUN_FRIEND NOUN_SOUP NOUN_BEHAVIOR NOUN_BODY NOUN_NUMBER NOUN_LORD
+
+// ── Adjetivos ────────────────────────────────────────────────
+%token ADJ_BIG ADJ_SMALL ADJ_GOOD ADJ_MANY ADJ_ONE ADJ_HEAVY ADJ_NEW
+%token ADJ_DIRTY ADJ_HIDDEN ADJ_TWISTED ADJ_FEW ADJ_WHITE ADJ_BLACK
+%token ADJ_TALL ADJ_COMPLETE ADJ_SICK ADJ_COLD ADJ_DRUNK ADJ_RICH
+%token ADJ_THIN ADJ_WET ADJ_ARROGANT ADJ_BEAUTIFUL ADJ_GREAT ADJ_HARD
+%token ADJ_AFRAID ADJ_LOVED ADJ_PAINFUL ADJ_YELLOW ADJ_RED ADJ_PROUD
+%token ADJ_STRAIGHT ADJ_CLEAR ADJ_SUNNY ADJ_DELICIOUS ADJ_FAST ADJ_UGLY
+%token ADJ_OLD ADJ_BURST ADJ_ROASTED ADJ_TINY ADJ_NICE ADV_VERY
+
+// ── Números ──────────────────────────────────────────────────
+%token NUM_TWO NUM_THREE NUM_FOUR NUM_FIVE NUM_SIX NUM_SEVEN NUM_EIGHT
+%token NUM_NINE NUM_TEN NUM_ELEVEN NUM_TWELVE NUM_THIRTEEN NUM_FOURTEEN
+%token NUM_FIFTEEN NUM_SIXTEEN NUM_SEVENTEEN NUM_EIGHTEEN NUM_NINETEEN
+%token NUM_TWENTY NUM_THIRTY
+
+// ── Comodín y puntuación ─────────────────────────────────────
+%token PROPER_NOUN WORD PERIOD COMMA QUESTION WHITESPACE
+
+%start discourse
+
+%%
+
+// ── Discurso: una o más oraciones ───────────────────────────
+discourse : discourse sentence PERIOD
+          | discourse sentence QUESTION
+          | sentence PERIOD
+          | sentence QUESTION
+
+// ── Tipos de oración ────────────────────────────────────────
+sentence : existential_sentence
+         | verbal_sentence
+         | progressive_sentence
+         | copular_sentence
+         | negative_sentence
+         | interrogative_sentence
+         | exclamative_sentence
+         | imperative_sentence
+         | vocative_sentence
+         | compound_sentence
+
+// ── 1. Oración existencial ──────────────────────────────────
+// "Wan li tenamit sa' li k'iche'."
+existential_sentence : VERB_EXIST noun_phrase
+                     | VERB_EXIST noun_phrase locative_phrase
+                     | VERB_EXIST noun_phrase locative_phrase locative_phrase
+                     | VERB_EXIST noun_phrase adverbial
+
+// ── 2. Oración verbal (VSO) ─────────────────────────────────
+// "Xik li winq sa' li tenamit."
+// "Xril li na'b'ej li yuwa'b'ej."
+verbal_sentence : verb_phrase noun_phrase opt_extension
+
+opt_extension :
+              | noun_phrase
+              | locative_phrase
+              | noun_phrase locative_phrase
+              | adverbial
+              | PREP_TO noun_phrase
+              | PREP_ABOUT noun_phrase
+              | PREP_WITH_INST noun_phrase
+
+// ── 3. Oración progresiva ───────────────────────────────────
+// "Yookin chi musiq'ak."
+// "Li kawa'chin yoo chi xik sa' lixb'eleb'aalch'iich'."
+// "Sa' li tzoleb'aal yookeb chi b'atz'unk rik'in li k'aam."
+progressive_sentence : VERB_EXIST LOC_WITH verb_root
+                     | VERB_EXIST LOC_WITH verb_root locative_phrase
+                     | VERB_EXIST LOC_WITH verb_root PREP_WITH_INST noun_phrase
+                     | noun_phrase VERB_EXIST LOC_WITH verb_root
+                     | noun_phrase VERB_EXIST LOC_WITH verb_root locative_phrase
+
+// ── 4. Oración copular ──────────────────────────────────────
+// "Laa'in aj k'anjel."  = Yo soy trabajador.
+// "Nim li wochoch."     = Mi casa es grande.
+// "Sa li tib'."         = Está rica la carne. (predicativo directo)
+copular_sentence : pronoun predicate
+                 | pronoun ADV_ALSO predicate
+                 | adjective noun_phrase
+
+predicate : MASC_MARK noun
+          | noun
+          | adjective
+          | PROPER_NOUN
+          | MASC_MARK PROPER_NOUN
+          | numeral noun
+
+// ── 5. Oración negativa ─────────────────────────────────────
+// "Ink'a' xik li winq."
+// "Mak'a xya'al lin tz'ib'leb'."
+negative_sentence : NEG verb_phrase noun_phrase
+                  | NEG verb_phrase noun_phrase opt_extension
+                  | NEG VERB_EXIST noun_phrase
+                  | NEG noun_phrase
+
+// ── 6. Oración interrogativa ────────────────────────────────
+// "B'ar wan li winq?"
+// "K'aru yookat?"
+// "Chanru wankat?"
+// "Ani laak'ab'a'?"
+interrogative_sentence : ADV_WHERE VERB_EXIST noun_phrase
+                       | ADV_WHERE verb_phrase noun_phrase
+                       | ADV_WHO verb_phrase
+                       | ADV_WHO VERB_EXIST noun_phrase
+                       | ADV_WHEN verb_phrase noun_phrase
+                       | ADV_HOW_MANY noun
+                       | INTERROG_WHAT VERB_EXIST noun_phrase
+                       | INTERROG_WHAT VERB_EXIST
+                       | INTERROG_HOW VERB_EXIST
+                       | INTERROG_HOW verb_phrase
+                       | INTERROG_WHY adjective noun_phrase
+                       | INTERROG_WHO noun_phrase
+                       | INTERROG_PART VERB_EXIST LOC_WITH verb_root noun_phrase
+                       | ADV_WHO noun_phrase
+
+// ── 7. Oración exclamativa ──────────────────────────────────
+// "Sa li tib'!"  (Está rica la carne)
+// "Ch'inaus li ch'inaxk'aal!"
+// "Nim li wochoch!"
+exclamative_sentence : ADJ_DELICIOUS noun_phrase
+                     | ADJ_DELICIOUS adjective noun_phrase
+                     | ADJ_NICE noun_phrase
+                     | ADJ_NICE noun_phrase noun_phrase
+                     | adjective noun_phrase
+
+// ── 8. Oración imperativa ───────────────────────────────────
+// "Tz'ap laahu."      (Cierra tu cuaderno)
+// "Tz'iib'a rik'in li tz'iib'leb'."  (Escribe con el lápiz)
+// "B'antiox aawe."    (Gracias a ti)
+imperative_sentence : verb_root noun_phrase
+                    | verb_root noun_phrase locative_phrase
+                    | verb_root PREP_WITH_INST noun_phrase
+                    | ADV_THANKS noun_phrase
+
+// ── 9. Oración vocativa ─────────────────────────────────────
+// "Laatz'in, chaakuy inmaak!"
+// "Wan ink'anjel, chaakuy inmaak!"
+// "Junelik, taqab'antioxi li Qawa'."
+vocative_sentence : noun_phrase COMMA verb_phrase noun_phrase
+                  | noun_phrase COMMA verb_phrase
+                  | noun_phrase COMMA predicate
+                  | ADV_ALWAYS COMMA verb_root noun_phrase
+
+// ── 10. Oración compuesta ───────────────────────────────────
+// "Xik li winq ut xil li ixq."
+compound_sentence : sentence CONJ_AND sentence
+                  | sentence CONJ_BUT sentence
+                  | sentence CONJ_WHEN sentence
+
+// ── Frase verbal ────────────────────────────────────────────
+verb_phrase : COMP_ASPECT verb_root
+            | verb_root
+            | ADV_PRESENT verb_root
+            | ADV_ALREADY verb_root
+            | ADV_NOT_YET verb_root
+
+verb_root : VERB_WORK | VERB_DO    | VERB_GO      | VERB_ARRIVE  | VERB_CURE
+          | VERB_SEE  | VERB_TEACH | VERB_FIND    | VERB_BUY     | VERB_SELL
+          | VERB_GIVE | VERB_HEAR  | VERB_WRITE   | VERB_KNOW    | VERB_SPEAK
+          | VERB_WANT | VERB_PLANT | VERB_BATHE   | VERB_WRAP    | VERB_PLAY
+          | VERB_FOLD | VERB_DIG   | VERB_TRAVEL  | VERB_THANK   | VERB_SCARE
+          | VERB_HIDE | VERB_TURN  | VERB_DELAY   | VERB_KILL    | VERB_SING
+          | VERB_PAINT| VERB_SEW   | VERB_INVITE  | VERB_MEASURE | VERB_CARRY
+          | VERB_WALK | VERB_GUIDE | VERB_COUNT   | VERB_TIE     | VERB_SLIM
+          | VERB_UNDO | VERB_DECEIVE| VERB_ENRICH | VERB_RUN     | VERB_TRANSLATE
+          | VERB_SAY  | VERB_DIE   | VERB_BORN    | VERB_CHANGE  | VERB_COMPLETE
+          | VERB_CALL | VERB_LOVE  | VERB_RECEIVE | VERB_GATHER  | VERB_EAT
+          | VERB_FORGIVE | VERB_HIT | VERB_SIT    | VERB_CUT     | VERB_FALL
+          | VERB_BREATHE | VERB_WASH | VERB_CLOSE | VERB_FINISH  | VERB_JUMP
+          | VERB_SEND | VERB_EXPLAIN | VERB_VISIT | VERB_APPEAR  | VERB_BELIEVE
+          | VERB_RESPECT | VERB_CRASH | VERB_HURT | VERB_PASS    | VERB_FIND_MEET
+          | VERB_SEARCH  | VERB_ATTEND | VERB_FEEL
+
+// ── Frase nominal ───────────────────────────────────────────
+noun_phrase : ART noun
+            | ART MASC_MARK noun
+            | ART noun adjective
+            | ART adjective noun
+            | PLURAL_MARK ART noun
+            | PLURAL_MARK ART MASC_MARK noun
+            | pronoun
+            | MASC_MARK PROPER_NOUN
+            | PROPER_NOUN
+            | MASC_MARK noun
+            | ADJ_ONE MASC_MARK noun
+            | ADJ_ONE noun
+            | ADJ_MANY MASC_MARK noun
+            | ADJ_MANY noun
+            | numeral MASC_MARK noun
+            | numeral noun
+            | noun
+            | noun ART noun
+            | ART noun ART noun
+            | ADV_EVERYONE MASC_MARK noun
+            | ADV_EVERYONE noun
+            | ADV_EACH noun_phrase
+
+// ── Sustantivos ─────────────────────────────────────────────
+noun : NOUN_WORD     | NOUN_LANGUAGE  | NOUN_TOWN       | NOUN_COMMUNITY
+     | NOUN_HOUSE    | NOUN_RIVER     | NOUN_LAND        | NOUN_SCHOOL
+     | NOUN_TEACHER  | NOUN_PEOPLE    | NOUN_PERSON      | NOUN_WOMAN
+     | NOUN_CHILD    | NOUN_WORK      | NOUN_MONEY       | NOUN_COW
+     | NOUN_DOG      | NOUN_CORN      | NOUN_WATER       | NOUN_DAY
+     | NOUN_MORNING  | NOUN_HAMMOCK   | NOUN_MEAT        | NOUN_SPIDER
+     | NOUN_LIZARD   | NOUN_FROG      | NOUN_GHOST       | NOUN_PIG
+     | NOUN_SALT     | NOUN_FLOWER    | NOUN_ROAD        | NOUN_BONE
+     | NOUN_BANANA   | NOUN_GLASS     | NOUN_STICK       | NOUN_CLOTHES
+     | NOUN_MONKEY   | NOUN_GOD       | NOUN_FRUIT       | NOUN_SOUL
+     | NOUN_FISH     | NOUN_TREE      | NOUN_MEDICINE    | NOUN_FIRE
+     | NOUN_DARKNESS | NOUN_RAIN      | NOUN_SUN         | NOUN_MOON
+     | NOUN_STAR     | NOUN_BIRD      | NOUN_JAGUAR      | NOUN_DEER
+     | NOUN_HORSE    | NOUN_CAT       | NOUN_HEAD        | NOUN_HAND
+     | NOUN_FOOT     | NOUN_FEAR      | NOUN_MIND        | NOUN_HEART
+     | NOUN_WORKSHOP | NOUN_STONE     | NOUN_SONG        | NOUN_PAINT
+     | NOUN_CHICHA   | NOUN_BALL      | NOUN_HUSBAND     | NOUN_WEALTH
+     | NOUN_HAT      | NOUN_MEASURE   | NOUN_SCALE       | NOUN_HOSPITAL
+     | NOUN_FIELD    | NOUN_TOY       | NOUN_LIE         | NOUN_OXEN
+     | NOUN_VEHICLE  | NOUN_MARKET    | NOUN_MOUNTAIN    | NOUN_FOREST
+     | NOUN_SIN      | NOUN_BEAN      | NOUN_FOOD        | NOUN_LAW
+     | NOUN_OFFICE   | NOUN_PRISON    | NOUN_HOLE        | NOUN_CLOUD
+     | NOUN_WASP     | NOUN_ANT       | NOUN_ANIMAL      | NOUN_MOUTH
+     | NOUN_MOTHER   | NOUN_FATHER    | NOUN_ORANGE      | NOUN_SHOE
+     | NOUN_SHIRT    | NOUN_MILPA     | NOUN_WELL        | NOUN_TABLE
+     | NOUN_HONEY    | NOUN_SELF      | NOUN_HILL        | NOUN_SMOKE
+     | NOUN_MUD      | NOUN_WORLD     | NOUN_SUFFERING   | NOUN_GOODNESS
+     | NOUN_CALCULATOR | NOUN_HYMNAL  | NOUN_BACK        | NOUN_TIGER
+     | NOUN_OPOSSUM  | NOUN_OWL      | NOUN_PIGLET       | NOUN_MOUNTAIN_JUNGLE
+     | NOUN_NOON     | NOUN_CHICKEN   | NOUN_FIREWOOD    | NOUN_ROPE
+     | NOUN_NAME     | NOUN_PENCIL    | NOUN_PAPER       | NOUN_HAIR
+     | NOUN_BABY     | NOUN_MEETING   | NOUN_WEEKEND     | NOUN_POT
+     | NOUN_CANDY    | NOUN_CAR       | NOUN_MOTORCYCLE  | NOUN_PLANE
+     | NOUN_CHAIR    | NOUN_DESK      | NOUN_MISTER      | NOUN_MISSIS
+     | NOUN_LOVE     | NOUN_GIRL      | NOUN_BOY         | NOUN_CLOTH
+     | NOUN_FRIEND   | NOUN_SOUP      | NOUN_BEHAVIOR    | NOUN_BODY
+     | NOUN_NUMBER   | NOUN_LORD
+     | WORD
+     | VERB_WORK | VERB_KNOW | VERB_SEE | VERB_SING | VERB_COUNT | VERB_EAT
+
+pronoun : PRON_1S | PRON_2S | PRON_3S | PRON_1PL | PRON_2PL | PRON_3PL
+
+// ── Frases locativas y adverbiales ──────────────────────────
+locative_phrase : LOC_IN   noun_phrase
+                | LOC_WITH noun_phrase
+                | PREP_FOR noun_phrase
+                | PREP_TO  noun_phrase
+                | PREP_WITH_INST noun_phrase
+
+adverbial : ADV_NOW | ADV_THERE | ADV_HERE | ADV_ALREADY | ADV_TOMORROW
+          | ADV_YESTERDAY | ADV_ALWAYS | ADV_BEFORE | WORD
+
+// ── Adjetivos ───────────────────────────────────────────────
+adjective : ADJ_BIG      | ADJ_SMALL    | ADJ_GOOD      | ADV_VERY
+          | ADJ_MANY     | ADJ_ONE      | ADJ_HEAVY     | ADJ_NEW
+          | ADJ_DIRTY    | ADJ_HIDDEN   | ADJ_TWISTED   | ADJ_FEW
+          | ADJ_WHITE    | ADJ_BLACK    | ADJ_TALL      | ADJ_COMPLETE
+          | ADJ_SICK     | ADJ_COLD     | ADJ_DRUNK     | ADJ_RICH
+          | ADJ_THIN     | ADJ_WET      | ADJ_ARROGANT  | ADJ_BEAUTIFUL
+          | ADJ_GREAT    | ADJ_HARD     | ADJ_AFRAID    | ADJ_LOVED
+          | ADJ_PAINFUL  | ADJ_YELLOW   | ADJ_RED       | ADJ_PROUD
+          | ADJ_STRAIGHT | ADJ_CLEAR    | ADJ_SUNNY     | ADJ_DELICIOUS
+          | ADJ_FAST     | ADJ_UGLY     | ADJ_OLD       | ADJ_BURST
+          | ADJ_ROASTED  | ADJ_TINY     | ADJ_NICE
+
+// ── Números ─────────────────────────────────────────────────
+numeral : ADJ_ONE    | NUM_TWO     | NUM_THREE   | NUM_FOUR   | NUM_FIVE
+        | NUM_SIX    | NUM_SEVEN   | NUM_EIGHT   | NUM_NINE   | NUM_TEN
+        | NUM_ELEVEN | NUM_TWELVE  | NUM_THIRTEEN| NUM_FOURTEEN | NUM_FIFTEEN
+        | NUM_SIXTEEN| NUM_SEVENTEEN| NUM_EIGHTEEN| NUM_NINETEEN| NUM_TWENTY
+        | NUM_THIRTY

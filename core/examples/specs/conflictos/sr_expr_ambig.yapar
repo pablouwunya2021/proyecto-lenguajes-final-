@@ -1,0 +1,44 @@
+// ══════════════════════════════════════════════════════════════
+// CONFLICTO SR — Operadores sin precedencia declarada
+// ══════════════════════════════════════════════════════════════
+//
+// La gramática usa la forma ambigua "expr OP expr". Al ver un
+// operador en el lookahead con otro operador ya en la pila, el
+// parser no sabe si reducir o shiftear. Cada combinación de
+// operadores genera un conflicto shift/reduce.
+//
+//   Pila: [expr PLUS expr]   Lookahead: TIMES
+//   - Reduce → (a+b)*c   (+ antes que *)  ← incorrecto
+//   - Shift  → a+(b*c)   (* antes que +)  ← correcto
+//
+//   Pila: [expr PLUS expr]   Lookahead: PLUS
+//   - Reduce → (a+b)+c   (izquierdo-asociativo) ← correcto
+//   - Shift  → a+(b+c)   (derecho-asociativo)
+//
+// RESOLUCIÓN con LALR — agregar antes del %% :
+//   %left PLUS
+//   %left TIMES
+//
+//   Precedencia mayor = declarado después. LALR compara la
+//   precedencia del operador en la pila contra el del lookahead
+//   para decidir shift o reduce → 0 conflictos.
+//
+// Conflictos esperados SIN declaraciones: 4 SR (un par por cada
+// combinación de los 2 operadores).
+
+%token ID NUM PLUS TIMES LPAREN RPAREN SEMICOLON
+
+%start program
+
+%%
+
+program : program stmt
+        | stmt
+
+stmt : expr SEMICOLON
+
+expr : expr PLUS  expr
+     | expr TIMES expr
+     | LPAREN expr RPAREN
+     | NUM
+     | ID

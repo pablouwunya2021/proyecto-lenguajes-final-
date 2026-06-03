@@ -27,8 +27,67 @@ void Grammar::loadFromString(const std::string& content) {
     nonTerminals_.clear();
     first_.clear();
     follow_.clear();
+    precMap_.clear();
+    prodPrecToken_.clear();
+    sawSeparator_ = false;
     parse(content);
+    validate();
     computeFirstAndFollow();
+}
+
+// ════════════════════════════════════════════════════════════
+//  validate() — verifica que la gramática leída sea coherente
+//  Lanza excepciones claras en lugar de fallar de forma críptica
+//  más adelante (al construir el autómata o al parsear).
+// ════════════════════════════════════════════════════════════
+void Grammar::validate() const {
+    // 1. Debe existir el separador %% (si no, no se leyó ninguna regla)
+    if (!sawSeparator_) {
+        throw std::runtime_error(
+            "La gramatica no contiene el separador '%%' que divide las "
+            "declaraciones (%token, %start, ...) de las reglas de produccion. "
+            "Agrega una linea con '%%' antes de las producciones.");
+    }
+
+    // 2. Debe haber al menos una produccion
+    if (productions_.empty()) {
+        throw std::runtime_error(
+            "La gramatica no tiene producciones despues del '%%'. "
+            "Define al menos una regla con la forma 'no_terminal : simbolos'.");
+    }
+
+    // 3. El simbolo inicial debe tener al menos una produccion
+    if (startSymbol_.name.empty()) {
+        throw std::runtime_error("No se pudo determinar el simbolo inicial de la gramatica.");
+    }
+    if (getProductionsFor(startSymbol_.name).empty()) {
+        throw std::runtime_error(
+            "El simbolo inicial '" + startSymbol_.name +
+            "' no tiene ninguna produccion definida.");
+    }
+
+    // 4. Todo no-terminal usado debe tener al menos una produccion
+    std::vector<std::string> undefined;
+    for (const auto& nt : nonTerminals_) {
+        if (getProductionsFor(nt.name).empty()) {
+            // Evitar duplicados
+            if (std::find(undefined.begin(), undefined.end(), nt.name) == undefined.end())
+                undefined.push_back(nt.name);
+        }
+    }
+    if (!undefined.empty()) {
+        std::string list;
+        for (size_t i = 0; i < undefined.size(); i++) {
+            if (i) list += ", ";
+            list += "'" + undefined[i] + "'";
+        }
+        throw std::runtime_error(
+            "Los siguientes no-terminales se usan en el lado derecho de alguna "
+            "produccion pero nunca se definen: " + list +
+            ". Revisa que no haya errores de tipografia o reglas faltantes "
+            "(recuerda que los terminales se escriben en MAYUSCULAS y se "
+            "declaran con %token).");
+    }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -43,17 +102,73 @@ void Grammar::loadFromString(const std::string& content) {
 //              ;
 //    ...
 // ════════════════════════════════════════════════════════════
-void Grammar::parse(const std::string& content) {
+void Grammar::parse(const std::string& rawContent) {
+    // ── Quitar BOM UTF-8 ─────────────────────────────────────────
+    std::string content = rawContent;
+    if (content.size() >= 3 &&
+        (unsigned char)content[0] == 0xEF &&
+        (unsigned char)content[1] == 0xBB &&
+        (unsigned char)content[2] == 0xBF) content = content.substr(3);
+
+    // ── Quitar bloques %{ ... %} ─────────────────────────────────
+    {
+        std::string clean;
+        size_t i = 0;
+        while (i < content.size()) {
+            if (i+1 < content.size() && content[i]=='%' && content[i+1]=='{') {
+                i += 2;
+                while (i < content.size()) {
+                    if (i+1 < content.size() && content[i]=='%' && content[i+1]=='}') { i+=2; break; }
+                    if (content[i]=='\n') clean += '\n'; // preservar líneas para números
+                    i++;
+                }
+            } else {
+                clean += content[i++];
+            }
+        }
+        content = clean;
+    }
+
+    // ── Quitar comentarios /* ... */ (multilínea) ────────────────
+    {
+        std::string clean;
+        size_t i = 0;
+        while (i < content.size()) {
+            if (i+1 < content.size() && content[i]=='/' && content[i+1]=='*') {
+                i += 2;
+                while (i < content.size()) {
+                    if (i+1 < content.size() && content[i]=='*' && content[i+1]=='/') { i+=2; break; }
+                    if (content[i]=='\n') clean += '\n';
+                    i++;
+                }
+            } else {
+                clean += content[i++];
+            }
+        }
+        content = clean;
+    }
+
     std::istringstream stream(content);
     std::string line;
     bool inRules = false;
     std::string currentLHS;
-    int prodId = 0;
+    int prodId    = 0;
+    int precLevel = 0; // sube con cada directiva %left/%right/%nonassoc
+    int lineNum   = 0;
 
     while (std::getline(stream, line)) {
-        // Quitar comentarios C-style: /* ... */ y //
-        size_t comment = line.find("//");
-        if (comment != std::string::npos) line = line.substr(0, comment);
+        lineNum++;
+        // Quitar comentarios // y (* ... *) en la misma línea
+        {
+            // //
+            size_t c2 = line.find("//");
+            if (c2 != std::string::npos) line = line.substr(0, c2);
+            // (* ... *) simple en una línea
+            size_t oc = line.find("(*");
+            size_t cc = line.find("*)");
+            if (oc != std::string::npos && cc != std::string::npos && cc > oc)
+                line = line.substr(0, oc) + line.substr(cc + 2);
+        }
 
         // Trim
         size_t s = line.find_first_not_of(" \t\r");
@@ -64,18 +179,43 @@ void Grammar::parse(const std::string& content) {
         if (line.empty()) continue;
 
         // Separador entre tokens y reglas
-        if (line == "%%") { inRules = true; continue; }
+        if (line == "%%" || line == "%%\r") { inRules = true; sawSeparator_ = true; continue; }
 
         if (!inRules) {
-            // Sección de declaraciones: %token, %start, etc.
-            if (line.substr(0, 6) == "%token") {
+            // Sección de declaraciones: %token, %start, %left, %right, %nonassoc
+            auto startsWith = [&](const std::string& prefix) {
+                return line.size() >= prefix.size() &&
+                       line.substr(0, prefix.size()) == prefix &&
+                       (line.size() == prefix.size() || line[prefix.size()] == ' ' || line[prefix.size()] == '\t');
+            };
+
+            if (startsWith("%token")) {
                 std::istringstream ts(line.substr(6));
                 std::string tok;
-                while (ts >> tok) addSymbol(Symbol::terminal(tok));
-            } else if (line.substr(0, 6) == "%start") {
+                while (ts >> tok) {
+                    // ignorar comentarios inline después del token
+                    if (tok == "//" || tok == "/*") break;
+                    addSymbol(Symbol::terminal(tok));
+                }
+            } else if (startsWith("%start")) {
                 std::istringstream ts(line.substr(6));
                 std::string name; ts >> name;
-                startSymbol_ = Symbol::nonTerminal(name);
+                if (!name.empty()) startSymbol_ = Symbol::nonTerminal(name);
+            } else if (startsWith("%left") || startsWith("%right") || startsWith("%nonassoc")) {
+                // Determinar asociatividad
+                Associativity assoc;
+                size_t skip;
+                if (startsWith("%left"))     { assoc = Associativity::LEFT;    skip = 5; }
+                else if (startsWith("%right")){ assoc = Associativity::RIGHT;   skip = 6; }
+                else                          { assoc = Associativity::NONASSOC; skip = 9; }
+
+                precLevel++; // nuevo nivel de precedencia
+                std::istringstream ts(line.substr(skip));
+                std::string tok;
+                while (ts >> tok) {
+                    addSymbol(Symbol::terminal(tok));
+                    precMap_[tok] = {precLevel, assoc};
+                }
             }
         } else {
             // Sección de reglas gramaticales
@@ -101,31 +241,49 @@ void Grammar::parse(const std::string& content) {
             // Quitar el ';' al final si existe
             if (!line.empty() && line.back() == ';') line.pop_back();
 
+            // Separar '|' y ';' aunque estén pegados a un símbolo.
+            // Ej: "VERB_PAINT| VERB_SEW" debe leerse como dos símbolos
+            // y un separador, no como el símbolo "VERB_PAINT|".
+            {
+                std::string padded;
+                for (char ch : line) {
+                    if (ch == '|' || ch == ';') { padded += ' '; padded += ch; padded += ' '; }
+                    else padded += ch;
+                }
+                line = padded;
+            }
+
             // Dividir por '|' en la misma línea
             std::istringstream altStream(line);
             std::string token;
             Production prod;
-            prod.id  = prodId++;
-            prod.lhs = Symbol::nonTerminal(currentLHS);
+            prod.id         = prodId++;
+            prod.lhs        = Symbol::nonTerminal(currentLHS);
+            prod.sourceLine = lineNum;
 
             // Leemos símbolo por símbolo
             // Si encontramos '|', iniciamos nueva producción
+            bool nextIsPrec = false; // flag: el siguiente token es el argumento de %prec
             while (altStream >> token) {
                 if (token == "|") {
-                    // Guardamos la producción actual y empezamos una nueva
                     productions_.push_back(prod);
                     prod = Production();
-                    prod.id  = prodId++;
-                    prod.lhs = Symbol::nonTerminal(currentLHS);
+                    prod.id         = prodId++;
+                    prod.lhs        = Symbol::nonTerminal(currentLHS);
+                    prod.sourceLine = lineNum;
+                    nextIsPrec = false;
                 } else if (token == ";" || token == "/*" || token == "*/") {
                     continue;
+                } else if (token == "%prec") {
+                    // El siguiente token será el nombre del terminal cuya precedencia usar
+                    nextIsPrec = true;
+                } else if (nextIsPrec) {
+                    // Guardamos el override de precedencia para esta producción
+                    prodPrecToken_[prod.id] = token;
+                    nextIsPrec = false;
                 } else {
-                    // ¿Es terminal o no-terminal?
-                    // Convención: terminales en MAYÚSCULAS o declarados con %token
-                    // No-terminales en minúsculas
                     bool isT = std::all_of(token.begin(), token.end(),
                                            [](char c){ return isupper(c) || c=='_'; });
-                    // También verificamos si fue declarado como terminal
                     for (const auto& t : terminals_)
                         if (t.name == token) { isT = true; break; }
 
@@ -138,6 +296,36 @@ void Grammar::parse(const std::string& content) {
             if (!prod.lhs.name.empty())
                 productions_.push_back(prod);
         }
+    }
+
+    // ── Aumentar la gramática: S' → S ──────────────────────────
+    // Imprescindible para construir tablas SLR/LALR correctas.
+    // Sin esta producción, el "reduce" del símbolo inicial se
+    // confunde con ACCEPT y los conflictos shift/reduce de
+    // gramáticas con símbolo inicial recursivo desaparecen
+    // (la tabla deja de ser certera).
+    if (!startSymbol_.name.empty() && !productions_.empty()) {
+        std::string augName = startSymbol_.name + "'";
+        // Evitar colisión (muy improbable) con un no-terminal existente
+        bool collide = true;
+        while (collide) {
+            collide = false;
+            for (const auto& nt : nonTerminals_)
+                if (nt.name == augName) { collide = true; augName += "'"; break; }
+        }
+
+        Production aug;
+        aug.lhs        = Symbol::nonTerminal(augName);
+        aug.rhs        = { startSymbol_ };
+        aug.sourceLine = 0;
+
+        // Insertar al frente (id 0) y renumerar el resto
+        productions_.insert(productions_.begin(), aug);
+        for (size_t i = 0; i < productions_.size(); i++)
+            productions_[i].id = (int)i;
+
+        addSymbol(Symbol::nonTerminal(augName));
+        startSymbol_ = Symbol::nonTerminal(augName);
     }
 
     // Agregar símbolo $ como terminal especial
@@ -294,6 +482,30 @@ const std::set<std::string>& Grammar::getFollow(const std::string& symbol) const
 // ════════════════════════════════════════════════════════════
 //  toJSON / print
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+//  getPrecedence / getProductionPrec
+// ════════════════════════════════════════════════════════════
+const PrecInfo* Grammar::getPrecedence(const std::string& token) const {
+    auto it = precMap_.find(token);
+    if (it == precMap_.end()) return nullptr;
+    return &it->second;
+}
+
+const PrecInfo* Grammar::getProductionPrec(int prodId) const {
+    if (prodId < 0 || prodId >= (int)productions_.size()) return nullptr;
+    const Production& p = productions_[prodId];
+
+    // ¿Hay override con %prec?
+    auto ov = prodPrecToken_.find(prodId);
+    if (ov != prodPrecToken_.end()) return getPrecedence(ov->second);
+
+    // Si no, usamos el terminal más a la derecha del RHS
+    for (int i = (int)p.rhs.size() - 1; i >= 0; i--) {
+        if (p.rhs[i].isTerminal) return getPrecedence(p.rhs[i].name);
+    }
+    return nullptr;
+}
+
 std::string Grammar::toJSON() const {
     std::ostringstream j;
     j << "{\n  \"productions\": [\n";
@@ -308,7 +520,61 @@ std::string Grammar::toJSON() const {
         if (i+1 < productions_.size()) j << ",";
         j << "\n";
     }
-    j << "  ],\n  \"start\": \"" << startSymbol_.name << "\"\n}";
+    j << "  ],\n  \"start\": \"" << startSymbol_.name << "\"";
+
+    // Incluir FIRST de no-terminales
+    j << ",\n  \"first\": {";
+    {
+        bool f1 = true;
+        for (const auto& nt : nonTerminals_) {
+            auto it = first_.find(nt.name);
+            if (it == first_.end()) continue;
+            if (!f1) j << ","; f1 = false;
+            j << "\n    \"" << nt.name << "\": [";
+            bool f2 = true;
+            for (const auto& s : it->second) {
+                if (!f2) j << ","; f2 = false;
+                j << "\"" << s << "\"";
+            }
+            j << "]";
+        }
+    }
+    j << "\n  }";
+
+    // Incluir FOLLOW de no-terminales
+    j << ",\n  \"follow\": {";
+    {
+        bool f1 = true;
+        for (const auto& nt : nonTerminals_) {
+            auto it = follow_.find(nt.name);
+            if (it == follow_.end()) continue;
+            if (!f1) j << ","; f1 = false;
+            j << "\n    \"" << nt.name << "\": [";
+            bool f2 = true;
+            for (const auto& s : it->second) {
+                if (!f2) j << ","; f2 = false;
+                j << "\"" << s << "\"";
+            }
+            j << "]";
+        }
+    }
+    j << "\n  }";
+
+    // Incluir tabla de precedencias si la hay
+    if (!precMap_.empty()) {
+        j << ",\n  \"precedence\": [\n";
+        bool first = true;
+        for (const auto& [tok, info] : precMap_) {
+            if (!first) j << ",\n"; first = false;
+            std::string assocStr = (info.assoc == Associativity::LEFT)    ? "left"
+                                 : (info.assoc == Associativity::RIGHT)   ? "right"
+                                 :                                           "nonassoc";
+            j << "    {\"token\":\"" << tok << "\",\"level\":" << info.level
+              << ",\"assoc\":\"" << assocStr << "\"}";
+        }
+        j << "\n  ]";
+    }
+    j << "\n}";
     return j.str();
 }
 

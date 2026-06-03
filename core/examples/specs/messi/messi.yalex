@@ -1,0 +1,68 @@
+(* ============================================================
+   messi.yalex — Especificacion lexica de MessiScript (v2)
+
+   Enfoque minimalista: solo los 14 comandos del lenguaje.
+   Las palabras de las oraciones (sustantivos, adjetivos,
+   texto libre) se capturan como WORD y el parser las trata
+   todas igual en las sentencias de asignacion.
+
+   Esto elimina la explosion del DFA que ocurria con 130+ reglas.
+   El gramatica en messi.yapar acepta WORD como value_word,
+   por lo que pelota, talento, argentina, etc. son equivalentes.
+============================================================ *)
+
+{
+  let letter = [a-zA-Z]
+  let word   = {letter}+
+  let ws     = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+
+  (* ── Comandos multi-palabra (del mas largo al mas corto) ── *)
+    "la mueve messi por la derecha"   { MOVE_RIGHT  }
+  | "La mueve Messi por la derecha"   { MOVE_RIGHT  }
+  | "la mueve messi por la izquierda" { MOVE_LEFT   }
+  | "La mueve Messi por la izquierda" { MOVE_LEFT   }
+  | "la agarra messi"                 { START       }
+  | "La agarra Messi"                 { START       }
+  | "La agarra messi"                 { START       }
+  | "la pisa messi"                   { PRINT_CHAR  }
+  | "La pisa Messi"                   { PRINT_CHAR  }
+  | "La pisa messi"                   { PRINT_CHAR  }
+  | "juega messi"                     { PRINT_INT   }
+  | "Juega Messi"                     { PRINT_INT   }
+  | "vuelve messi"                    { LOOP_END    }
+  | "Vuelve Messi"                    { LOOP_END    }
+  | "sigue messi"                     { LOOP_BEGIN  }
+  | "Sigue Messi"                     { LOOP_BEGIN  }
+  | "corre messi"                     { COPY_CLIP   }
+  | "Corre Messi"                     { COPY_CLIP   }
+  | "amaga messi"                     { PASTE_CLIP  }
+  | "Amaga Messi"                     { PASTE_CLIP  }
+  | "siempre messi"                   { READ_INT    }
+  | "Siempre Messi"                   { READ_INT    }
+  | "gambetea messi"                  { READ_CHAR   }
+  | "Gambetea Messi"                  { READ_CHAR   }
+  | "encara messi"                    { ZERO_POS    }
+  | "Encara Messi"                    { ZERO_POS    }
+  | "ankara messi"                    { ZERO_POS    }
+  | "va messi"                        { ASSIGN_BEGIN }
+  | "Va Messi"                        { ASSIGN_BEGIN }
+  | "Va messi"                        { ASSIGN_BEGIN }
+  | "Le pega Messiiii..."             { GOAL_PREFIX  }
+
+  (* ── Fin de programa ─────────────────────────────────────── *)
+  | "gol"                             { END_PROG    }
+
+  (* ── Separadores ─────────────────────────────────────────── *)
+  | "."                               { DOT         }
+  | ","                               { COMMA       }
+
+  (* ── Todas las demas palabras ASCII son WORD ─────────────── *)
+  (* Esto incluye: pelota, talento, argentina, futbol, etc.    *)
+  (* El parser las trata igual en las sentencias de asignacion *)
+  | {word}+                           { WORD        }
+
+  (* ── Espacios ─────────────────────────────────────────────── *)
+  | {ws}+                             { WHITESPACE  }

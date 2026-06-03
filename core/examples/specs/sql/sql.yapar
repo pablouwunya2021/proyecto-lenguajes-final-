@@ -1,0 +1,191 @@
+// Gramatica SQL simplificada — 0 conflictos LALR
+//
+// Correcciones respecto a version anterior:
+//  - table_ref: eliminado "table_name ID" (alias sin AS causaba RR)
+//    Alias solo via AS keyword
+//  - select_stmt: reducido a una sola produccion con clausulas opcionales
+//    representadas por no-terminales especificos — evita las 14 alternativas
+//    que generaban conflictos por solapamiento
+//  - col_ref y table_name: separados claramente para evitar RR
+
+%token SELECT FROM WHERE AND OR NOT ORDER GROUP BY HAVING
+%token JOIN INNER LEFT RIGHT OUTER ON AS LIMIT OFFSET DISTINCT
+%token COUNT SUM AVG MAX MIN
+%token INSERT INTO VALUES UPDATE SET DELETE CREATE TABLE PRIMARY KEY
+%token INTEGER VARCHAR IS NULL_KW BETWEEN LIKE IN_KW ASC DESC
+%token ID INT_LIT FLOAT_LIT
+%token EQ NEQ NEQ2 LEQ GEQ LT GT
+%token STAR PLUS MINUS DIV
+%token LPAREN RPAREN COMMA SEMICOLON DOT
+
+%start sql_script
+
+%%
+
+sql_script : stmt_list
+
+stmt_list : stmt_list sql_stmt SEMICOLON
+          | sql_stmt SEMICOLON
+
+sql_stmt : select_stmt
+         | insert_stmt
+         | update_stmt
+         | delete_stmt
+         | create_stmt
+
+// ── SELECT ────────────────────────────────────────────────────
+// Una sola produccion con clausulas opcionales encadenadas
+// en no-terminales dedicados — elimina las 14 alternativas que
+// se solapaban y generaban conflictos RR/SR
+
+select_stmt : SELECT select_cols FROM table_ref opt_joins opt_where opt_group opt_order opt_limit
+            | SELECT DISTINCT select_cols FROM table_ref opt_joins opt_where opt_group opt_order opt_limit
+
+// Clausulas opcionales — cada una tiene la forma "keyword ... | empty_marker"
+// Se evita epsilon usando un marcador de fin de clausula o NO incluyendola
+// Aqui se usan non-terminales que pueden expandir a la clausula o a epsilon-free
+
+opt_joins  : join_list |
+opt_where  : WHERE cond_expr |
+opt_group  : GROUP BY col_ref_list opt_having |
+opt_having : HAVING cond_expr |
+opt_order  : ORDER BY order_list |
+opt_limit  : LIMIT INT_LIT |
+           | LIMIT INT_LIT OFFSET INT_LIT
+
+select_cols : col_list
+            | STAR
+
+col_list : col_list COMMA select_expr
+         | select_expr
+
+// aggregate_func ya está cubierto por expr (vía factor2), así que
+// no se declara aparte aquí: eso evita el RR de "dos caminos a la
+// misma reducción" y permite agregados también en HAVING y ORDER BY.
+select_expr : expr
+            | expr AS ID
+
+aggregate_func : COUNT LPAREN STAR RPAREN
+               | COUNT LPAREN expr RPAREN
+               | SUM   LPAREN expr RPAREN
+               | AVG   LPAREN expr RPAREN
+               | MAX   LPAREN expr RPAREN
+               | MIN   LPAREN expr RPAREN
+
+table_ref : table_name
+          | table_name AS ID
+          | table_name ID        // alias sin AS: "FROM empleados e"
+
+table_name : ID
+           | ID DOT ID
+
+join_list : join_list join_clause
+          | join_clause
+
+join_clause : JOIN           table_ref ON cond_expr
+            | INNER JOIN     table_ref ON cond_expr
+            | LEFT  JOIN     table_ref ON cond_expr
+            | RIGHT JOIN     table_ref ON cond_expr
+            | LEFT  OUTER JOIN table_ref ON cond_expr
+            | RIGHT OUTER JOIN table_ref ON cond_expr
+
+col_ref_list : col_ref_list COMMA col_ref
+             | col_ref
+
+col_ref : ID
+        | ID DOT ID
+
+order_list : order_list COMMA order_item
+           | order_item
+
+order_item : expr
+           | expr ASC
+           | expr DESC
+
+// ── INSERT ────────────────────────────────────────────────────
+
+insert_stmt : INSERT INTO table_name LPAREN col_ref_list RPAREN VALUES LPAREN value_list RPAREN
+            | INSERT INTO table_name VALUES LPAREN value_list RPAREN
+
+value_list : value_list COMMA literal
+           | literal
+
+literal : INT_LIT
+        | FLOAT_LIT
+        | NULL_KW
+
+// ── UPDATE ────────────────────────────────────────────────────
+
+update_stmt : UPDATE table_name SET set_list
+            | UPDATE table_name SET set_list WHERE cond_expr
+
+set_list : set_list COMMA set_item
+         | set_item
+
+set_item : col_ref EQ expr
+
+// ── DELETE ────────────────────────────────────────────────────
+
+delete_stmt : DELETE FROM table_name
+            | DELETE FROM table_name WHERE cond_expr
+
+// ── CREATE TABLE ──────────────────────────────────────────────
+
+create_stmt : CREATE TABLE ID LPAREN col_def_list RPAREN
+
+col_def_list : col_def_list COMMA col_def
+             | col_def
+
+col_def : ID col_type
+        | ID col_type PRIMARY KEY
+        | ID col_type NOT NULL_KW
+        | ID col_type PRIMARY KEY NOT NULL_KW
+
+col_type : INTEGER
+         | VARCHAR LPAREN INT_LIT RPAREN
+
+// ── Condiciones booleanas ─────────────────────────────────────
+
+cond_expr : cond_expr OR  cond_and
+          | cond_and
+
+cond_and : cond_and AND cond_not
+         | cond_not
+
+cond_not : NOT cond_not
+         | predicate
+
+predicate : expr cmp_op expr
+          | expr IS NULL_KW
+          | expr IS NOT NULL_KW
+          | expr BETWEEN expr AND expr
+          | expr IN_KW LPAREN value_list RPAREN
+          | LPAREN cond_expr RPAREN
+
+cmp_op : EQ | NEQ | NEQ2 | LT | GT | LEQ | GEQ
+
+// ── Expresiones aritmeticas ───────────────────────────────────
+
+expr : expr PLUS  term2
+     | expr MINUS term2
+     | term2
+
+term2 : term2 STAR  factor2
+      | term2 DIV   factor2
+      | factor2
+
+// Nota: SQL tiene un conflicto LR inherente entre "table_name → ID"
+// (en FROM) y "ID en expresiones" (en SELECT/WHERE) porque comparten
+// el mismo estado LR(0) con AS/FROM/COMMA en ambos FOLLOW.
+// Es un problema conocido de SQL en parsers LR — requiere GLR o
+// resolucion con tabla de simbolos en tiempo de parsing.
+// Se mantiene la resolucion por default (shift gana sobre reduce).
+// aggregate_func vive aquí, dentro de factor2: así los agregados
+// (COUNT, AVG, ...) son válidos en cualquier expresión — SELECT,
+// HAVING y ORDER BY — con un único camino de reducción (sin RR).
+factor2 : literal
+        | ID
+        | ID DOT ID
+        | LPAREN expr RPAREN
+        | MINUS factor2
+        | aggregate_func

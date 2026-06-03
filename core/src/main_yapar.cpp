@@ -45,13 +45,13 @@ int main(int argc, char* argv[]) {
         // 1. Cargar gramática
         yapar::Grammar grammar;
         grammar.loadFromFile(yaparPath);
-        std::cout << "[YAPar] Gramática cargada: "
+        std::cerr << "[YAPar] Gramática cargada: "
                   << grammar.getProductions().size() << " producciones\n";
 
         // 2. Construir autómata LR(0)
         yapar::LR0Automaton automaton;
         automaton.build(grammar);
-        std::cout << "[YAPar] Autómata LR(0): "
+        std::cerr << "[YAPar] Autómata LR(0): "
                   << automaton.getStates().size() << " estados\n";
 
         // 3. Construir tablas en paralelo
@@ -64,10 +64,10 @@ int main(int argc, char* argv[]) {
         std::thread t3([&](){ lalr.build(automaton); });
         t1.join(); t2.join(); t3.join();
 
-        std::cout << "[YAPar] Tablas construidas\n";
-        std::cout << "  SLR(1)  conflictos: " << slr.getConflicts().size()  << "\n";
-        std::cout << "  LL(1)   conflictos: " << ll1.getConflicts().size()  << "\n";
-        std::cout << "  LALR(1) conflictos: " << lalr.getConflicts().size() << "\n";
+        std::cerr << "[YAPar] Tablas construidas\n";
+        std::cerr << "  SLR(1)  conflictos: " << slr.getConflicts().size()  << "\n";
+        std::cerr << "  LL(1)   conflictos: " << ll1.getConflicts().size()  << "\n";
+        std::cerr << "  LALR(1) conflictos: " << lalr.getConflicts().size() << "\n";
 
         // 4. Resolver conflictos SLR con paralelismo
         yapar::ConflictResolver resolver;
@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
         if (!yalexPath.empty()) {
             yalex::Tokenizer tok;
             tok.loadFromFile(yalexPath);
-            auto lexResult = tok.tokenize(inputText);
+            auto lexResult = tok.tokenize(inputText, /*skipWhitespace=*/true);
             tokens = lexResult.tokens;
         }
 
@@ -86,15 +86,22 @@ int main(int argc, char* argv[]) {
         yapar::ParseResult parseResult;
         if (!tokens.empty()) {
             yapar::Parser parser;
-            parser.useTable(slr, grammar);
+            // Usamos LALR(1): es estrictamente más potente que SLR(1)
+            // (resuelve gramáticas LALR que SLR no puede) y aplica la
+            // resolución por precedencia igual que SLR.
+            parser.useTable(lalr, grammar);
             parseResult = parser.parse(tokens);
         }
 
         // 7. Salida JSON
+        // Generar el DOT del autómata LR(0)
+        std::string lr0Dot = automaton.toDOT("Automata LR(0)");
+
         std::cout << "{\n"
                   << "  \"success\": " << (parseResult.success||tokens.empty()?"true":"false") << ",\n"
                   << "  \"grammar\": " << grammar.toJSON() << ",\n"
                   << "  \"automaton\": " << automaton.toJSON() << ",\n"
+                  << "  \"automaton_dot\": \"" << escape(lr0Dot) << "\",\n"
                   << "  \"slr\": " << slr.toJSON() << ",\n"
                   << "  \"ll1\": " << ll1.toJSON() << ",\n"
                   << "  \"lalr\": " << lalr.toJSON() << ",\n"

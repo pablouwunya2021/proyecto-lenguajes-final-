@@ -10,6 +10,16 @@
 
 namespace yapar {
 
+// ── Precedencia / asociatividad ────────────────────────────
+// Se declara con %left, %right, %nonassoc en el .yapar.
+// El nivel sube con cada directiva (mayor nivel = mayor precedencia).
+enum class Associativity { LEFT, RIGHT, NONASSOC, NONE };
+
+struct PrecInfo {
+    int           level;  // mayor = mayor precedencia
+    Associativity assoc;
+};
+
 // ── Símbolo ────────────────────────────────────────────────
 // Un símbolo es terminal (token) o no-terminal (variable).
 // Usamos una constante especial para epsilon y para $.
@@ -31,9 +41,10 @@ struct Symbol {
 // Una regla de la forma: A → α  donde α es una lista de símbolos.
 // Si α está vacío equivale a A → ε (producción epsilon).
 struct Production {
-    int                 id;     // índice único en la gramática
-    Symbol              lhs;   // lado izquierdo (no-terminal)
-    std::vector<Symbol> rhs;   // lado derecho (lista de símbolos)
+    int                 id;         // índice único en la gramática
+    Symbol              lhs;        // lado izquierdo (no-terminal)
+    std::vector<Symbol> rhs;        // lado derecho (lista de símbolos)
+    int                 sourceLine = 0;  // línea en el .yapar donde se definió
 
     bool isEpsilon() const { return rhs.empty(); }
 };
@@ -67,6 +78,14 @@ public:
     // FIRST de una secuencia de símbolos α
     std::set<std::string> firstOfSequence(const std::vector<Symbol>& seq) const;
 
+    // ── Precedencia ────────────────────────────────────────
+    // Retorna info de precedencia del token, o nullptr si no tiene.
+    const PrecInfo* getPrecedence(const std::string& token) const;
+
+    // Retorna info de precedencia de la producción.
+    // Usa %prec override si existe; si no, el terminal más a la derecha del RHS.
+    const PrecInfo* getProductionPrec(int prodId) const;
+
     // Serialización para el API
     std::string toJSON() const;
     void        print()  const;
@@ -81,9 +100,20 @@ private:
     std::map<std::string, std::set<std::string>> first_;
     std::map<std::string, std::set<std::string>> follow_;
 
+    // token → {nivel, asociatividad}
+    std::map<std::string, PrecInfo> precMap_;
+    // prodId → token cuya precedencia usar (declarado con %prec TOKEN)
+    std::map<int, std::string>      prodPrecToken_;
+
+    // true cuando se encontró el separador '%%' al leer el .yapar
+    bool sawSeparator_ = false;
+
     // ── Parser del .yapar ──────────────────────────────────
     void parse(const std::string& content);
     void addSymbol(const Symbol& s);
+
+    // Verifica coherencia de la gramática leída (lanza si hay errores)
+    void validate() const;
 
     // ── Algoritmos ────────────────────────────────────────
     void computeFirst();

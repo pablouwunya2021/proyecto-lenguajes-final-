@@ -1,0 +1,8 @@
+x = 5
+y = 10
+z = x + y
+pi = 3
+radio = 4
+area = pi * radio * radio
+local nombre = 42
+local resultado = x * y + z

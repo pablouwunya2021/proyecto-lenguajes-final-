@@ -1,0 +1,31 @@
+public class Matematica {
+    public static int suma(int a, int b) {
+        return a + b ;
+    }
+
+    public static int resta(int a, int b) {
+        return a - b ;
+    }
+
+    public static int factorial(int n) {
+        if (n <= 1) {
+            return 1 ;
+        } else {
+            return n * factorial(n - 1) ;
+        }
+    }
+
+    public static boolean esPar(int n) {
+        if (n % 2 == 0) {
+            return true ;
+        } else {
+            return false ;
+        }
+    }
+
+    public static void main() {
+        int a = suma(3, 4) ;
+        int b = factorial(5) ;
+        boolean par = esPar(6) ;
+    }
+}

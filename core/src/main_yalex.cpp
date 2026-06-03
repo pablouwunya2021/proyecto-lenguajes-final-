@@ -64,7 +64,11 @@ int main(int argc, char* argv[]) {
             if (i+1 < result.errors.size()) std::cout << ",";
             std::cout << "\n";
         }
-        std::cout << "  ],\n  \"dfa\": " << result.dfaJSON << "\n}\n";
+        // DFA en JSON (para tablas) y en DOT (para Graphviz)
+        std::string dfaDot = tok.getDFA().toDOT("DFA Minimizado");
+        std::cout << "  ],\n"
+                  << "  \"dfa\": " << result.dfaJSON << ",\n"
+                  << "  \"dfa_dot\": \"" << jsonEscape(dfaDot) << "\"\n}\n";
     } catch (const std::exception& e) {
         std::cout << "{\"success\":false,\"error\":\"" << jsonEscape(e.what()) << "\"}\n";
         return 1;

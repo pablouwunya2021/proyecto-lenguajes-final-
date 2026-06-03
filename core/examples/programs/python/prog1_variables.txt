@@ -1,0 +1,7 @@
+x = 5
+y = 3
+z = x + y
+resultado = z * 2
+pi = 3
+radio = 5
+area = pi * radio * radio

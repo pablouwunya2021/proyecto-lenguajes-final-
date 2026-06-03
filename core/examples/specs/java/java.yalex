@@ -1,0 +1,62 @@
+(* YALex para Java simplificado *)
+{
+  let letter = [a-zA-Z_]
+  let digit  = [0-9]
+  let alnum  = [a-zA-Z0-9_]
+  let ws     = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "class"     { CLASS }
+  | "public"    { PUBLIC }
+  | "private"   { PRIVATE }
+  | "static"    { STATIC }
+  | "void"      { VOID_TYPE }
+  | "int"       { INT_TYPE }
+  | "float"     { FLOAT_TYPE }
+  | "double"    { DOUBLE_TYPE }
+  | "boolean"   { BOOLEAN_TYPE }
+  | "String"    { STRING_TYPE }
+  | "char"      { CHAR_TYPE }
+  | "new"       { NEW }
+  | "if"        { IF }
+  | "else"      { ELSE }
+  | "while"     { WHILE }
+  | "for"       { FOR }
+  | "return"    { RETURN }
+  | "true"      { TRUE }
+  | "false"     { FALSE }
+  | "null"      { NULL_LIT }
+  | "this"      { THIS }
+  | {letter}{alnum}* { ID }
+  | {digit}+'.'{digit}+ { FLOAT_LIT }
+  | {digit}+    { INT_LIT }
+  | "=="        { EQ }
+  | "!="        { NEQ }
+  | "<="        { LEQ }
+  | ">="        { GEQ }
+  | "&&"        { AND }
+  | "||"        { OR }
+  | "+="        { PLUS_ASSIGN }
+  | "-="        { MINUS_ASSIGN }
+  | "++"        { INCREMENT }
+  | "--"        { DECREMENT }
+  | "!"         { NOT }
+  | "="         { ASSIGN }
+  | "<"         { LT }
+  | ">"         { GT }
+  | "+"         { PLUS }
+  | "-"         { MINUS }
+  | "*"         { TIMES }
+  | "/"         { DIV }
+  | "%"         { MOD }
+  | "("         { LPAREN }
+  | ")"         { RPAREN }
+  | "{"         { LBRACE }
+  | "}"         { RBRACE }
+  | "["         { LBRACKET }
+  | "]"         { RBRACKET }
+  | ";"         { SEMICOLON }
+  | ","         { COMMA }
+  | "."         { DOT }
+  | {ws}+       { WHITESPACE }

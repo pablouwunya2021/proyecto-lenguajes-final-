@@ -1,0 +1,22 @@
+def suma(a, b):
+    return a + b
+end
+
+def resta(a, b):
+    return a - b
+end
+
+def producto(a, b):
+    return a * b
+end
+
+def max2(x, y):
+    if x > y:
+        return x
+    end
+    return y
+end
+
+resultado = suma(10, 5)
+diferencia = resta(10, 5)
+mayor = max2(7, 3)

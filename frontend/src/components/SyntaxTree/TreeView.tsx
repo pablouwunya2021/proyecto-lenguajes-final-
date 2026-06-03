@@ -8,7 +8,7 @@ import type { ParseNode } from '../../types';
 
 interface D3TreeNode extends d3.HierarchyPointNode<ParseNode> {}
 
-export function TreeView() {
+export function TreeView({ theme: _theme }: { theme?: any }) {
   const { yaparResult } = useStore();
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -114,12 +114,40 @@ export function TreeView() {
   }, [yaparResult]);
 
   if (!yaparResult?.tree) {
+    // Si tenemos resultado pero no árbol, hay errores de parseo
+    if (yaparResult && (yaparResult.errors?.length || !yaparResult.success)) {
+      const errs = yaparResult.errors ?? (yaparResult.error ? [yaparResult.error] : ['Error de parseo desconocido']);
+      return (
+        <div className="p-6 h-full overflow-auto">
+          <div className="rounded-xl border-2 p-5 mb-4"
+               style={{ background: '#ff000015', borderColor: '#ef4444' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ fontSize: '20px' }}>✗</span>
+              <span className="font-bold text-sm" style={{ color: '#ef4444' }}>
+                El input no es válido según la gramática cargada
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {errs.map((e, i) => (
+                <div key={i} className="rounded-lg px-4 py-2 text-sm font-mono"
+                     style={{ background: '#ff000020', color: '#fca5a5', borderLeft: '3px solid #ef4444' }}>
+                  {e}
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: '#6b7280' }}>
+            Revisa que los tokens del .yalex coincidan con los terminales del .yapar y que el input siga la gramática.
+          </p>
+        </div>
+      );
+    }
     return (
-      <div className="flex items-center justify-center h-full text-text-secondary">
+      <div className="flex items-center justify-center h-full" style={{ color: '#6b7280' }}>
         <div className="text-center">
           <div className="text-5xl mb-4">🌳</div>
           <p className="text-lg font-medium">El árbol sintáctico aparecerá aquí</p>
-          <p className="text-sm mt-2 text-text-muted">Ejecuta el parser con un input válido</p>
+          <p className="text-sm mt-2">Ejecuta el parser con un input válido</p>
         </div>
       </div>
     );

@@ -1,0 +1,136 @@
+// Gramatica Python-like — 0 conflictos LALR
+// Bloques: abren con : y cierran con end
+//
+// Correcciones respecto a version anterior:
+//  - expr/and_expr: derecho-recursivo → izquierdo-recursivo (elimina SR con OR/AND)
+//  - compare: usa compare EQ additive (izq-recursivo) en vez de additive EQ additive
+//  - assign_stmt: solo ID ASSIGN expr (las formas DOT/LBRACKET creaban RR con expr_stmt)
+
+%token DEF CLASS IF ELIF ELSE WHILE FOR IN RETURN PASS AND OR NOT
+%token TRUE FALSE NONE END
+%token ID INT_LIT FLOAT_LIT
+%token EQ NEQ LEQ GEQ LT GT ASSIGN PLUS_ASSIGN MINUS_ASSIGN
+%token PLUS MINUS TIMES DIV MOD POW
+%token LPAREN RPAREN LBRACKET RBRACKET COMMA COLON DOT
+
+// Precedencia — resuelve SR entre operadores y FOLLOW(stmt)
+// Mayor prioridad = declarado despues
+// LOWEST_PREC: token ficticio para %prec en producciones sin terminal propio
+%left LOWEST_PREC
+%nonassoc EQ NEQ LT GT LEQ GEQ
+%left PLUS MINUS
+%left TIMES DIV MOD
+%right POW
+%left LBRACKET LPAREN DOT
+
+%start program
+
+%%
+
+program : stmt_list
+
+stmt_list : stmt_list stmt
+          | stmt
+
+stmt : func_def
+     | class_def
+     | if_stmt
+     | while_stmt
+     | for_stmt
+     | assign_stmt
+     | aug_assign_stmt
+     | return_stmt
+     | pass_stmt
+     | expr_stmt
+
+func_def : DEF ID LPAREN RPAREN COLON block
+         | DEF ID LPAREN param_list RPAREN COLON block
+
+class_def : CLASS ID COLON block
+
+block : stmt_list END
+
+param_list : param_list COMMA param
+           | param
+
+param : ID
+
+if_stmt : IF expr COLON block
+        | IF expr COLON block elif_chain
+        | IF expr COLON block ELSE COLON block
+
+elif_chain : ELIF expr COLON block
+           | ELIF expr COLON block elif_chain
+           | ELIF expr COLON block ELSE COLON block
+
+while_stmt : WHILE expr COLON block
+
+for_stmt : FOR ID IN expr COLON block
+
+// Solo asignacion simple — ID DOT ID y ID[expr] crean ambiguedad con expr_stmt
+assign_stmt : ID ASSIGN expr
+
+aug_assign_stmt : ID PLUS_ASSIGN  expr
+                | ID MINUS_ASSIGN expr
+
+// RETURN sin expr eliminado: causaba SR porque FOLLOW(stmt) incluye
+// todos los tokens que empiezan expresion. Usar "return None" en su lugar.
+return_stmt : RETURN expr
+
+pass_stmt : PASS
+
+expr_stmt : expr
+
+// Expresiones izquierdo-recursivas — sin conflictos SR
+// or < and < not < compare < suma < mult < potencia < unario < postfijo < primario
+
+expr : expr OR and_expr
+     | and_expr
+
+and_expr : and_expr AND not_expr
+         | not_expr
+
+not_expr : NOT not_expr
+         | compare
+
+// Izquierdo-recursivo: elimina SR entre "additive EQ additive" y MINUS siguiente
+compare : compare EQ  additive
+        | compare NEQ additive
+        | compare LT  additive
+        | compare GT  additive
+        | compare LEQ additive
+        | compare GEQ additive
+        | additive %prec LOWEST_PREC
+
+additive : additive PLUS  term
+         | additive MINUS term
+         | term
+
+term : term TIMES power
+     | term DIV   power
+     | term MOD   power
+     | power
+
+// POW es derecho-asociativo — no causa conflicto porque power no es izq-recursivo
+power : unary POW power
+      | unary %prec LOWEST_PREC
+
+unary : MINUS unary
+      | postfix %prec LOWEST_PREC
+
+postfix : postfix LPAREN RPAREN
+        | postfix LPAREN arg_list RPAREN
+        | postfix LBRACKET expr RBRACKET
+        | postfix DOT ID
+        | primary
+
+primary : ID
+        | INT_LIT
+        | FLOAT_LIT
+        | TRUE
+        | FALSE
+        | NONE
+        | LPAREN expr RPAREN
+
+arg_list : arg_list COMMA expr
+         | expr

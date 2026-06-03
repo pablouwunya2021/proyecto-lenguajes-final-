@@ -1,0 +1,43 @@
+// ══════════════════════════════════════════════════════════════
+// CONFLICTO RR — Tipo vs expresión (nombre ambiguo)
+// ══════════════════════════════════════════════════════════════
+//
+// Un mismo identificador seguido de ';' puede interpretarse como
+// una DECLARACIÓN DE TIPO o como una EXPRESIÓN suelta. Como ambas
+// formas son idénticas a nivel sintáctico ("ID ;"), el parser no
+// puede decidir a cuál reducir.
+//
+//   stmt      : type_decl | expr_stmt
+//   type_decl : ID SEMICOLON     // "Persona ;"  (declaración)
+//   expr_stmt : ID SEMICOLON     // "p ;"        (expresión)
+//
+//   Con input "p ;":
+//   Pila: [ID SEMICOLON]   Lookahead: $ (o siguiente stmt)
+//   - Reduce type_decl : ID SEMICOLON
+//   - Reduce expr_stmt : ID SEMICOLON
+//   Ambas completan con el mismo lookahead → reduce/reduce.
+//
+// Es el problema clásico del "typedef" en C, que los compiladores
+// resuelven con una tabla de símbolos (lexer hack), NO con la
+// gramática. Los conflictos RR no se resuelven con precedencia:
+// hay que reestructurar (fusionar type_decl y expr_stmt).
+//
+// Conflictos esperados: 2 RR (el mismo conflicto reduce/reduce se
+// reporta una vez por cada lookahead posible tras un statement:
+// el inicio de otro statement (ID) y el fin de entrada ($)).
+
+%token ID SEMICOLON
+
+%start program
+
+%%
+
+program : program stmt
+        | stmt
+
+stmt : type_decl
+     | expr_stmt
+
+type_decl : ID SEMICOLON
+
+expr_stmt : ID SEMICOLON

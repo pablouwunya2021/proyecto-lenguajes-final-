@@ -1,0 +1,20 @@
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+JOIN departamentos ON empleados.dep_id = departamentos.id ;
+
+SELECT e.nombre, e.salario, d.nombre
+FROM empleados e
+INNER JOIN departamentos d ON e.dep_id = d.id
+WHERE e.salario > 40000
+ORDER BY e.salario DESC ;
+
+SELECT e.nombre, p.titulo
+FROM empleados e
+LEFT JOIN proyectos p ON e.id = p.lider_id
+WHERE p.activo > 0 ;
+
+SELECT AVG(e.salario), d.nombre
+FROM empleados e
+JOIN departamentos d ON e.dep_id = d.id
+GROUP BY d.nombre
+HAVING AVG(e.salario) > 50000 ;

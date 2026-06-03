@@ -1,0 +1,54 @@
+// ══════════════════════════════════════════════════════════════
+// CONFLICTO SR — Dangling Else
+// ══════════════════════════════════════════════════════════════
+//
+// Estado con conflicto:
+//   Pila: [... IF LPAREN expr RPAREN stmt]   Lookahead: ELSE
+//   - Shift ELSE  → else se une al if mas cercano  (estandar)
+//   - Reduce      → if_stmt sin else; el else quedaria para el if exterior
+//
+// Resolucion con LALR:
+//   Agregar antes del %% :
+//     %nonassoc LOWER_THAN_ELSE
+//     %right ELSE
+//   Y anotar la primera alternativa:
+//     if_stmt : IF LPAREN expr RPAREN stmt %prec LOWER_THAN_ELSE
+//   ELSE tiene mayor precedencia que LOWER_THAN_ELSE → shift gana → 0 conflictos
+//
+// Conflictos esperados SIN declaraciones: 1 SR
+
+%token IF ELSE ID NUM EQ NEQ LT GT LEQ GEQ PLUS MINUS TIMES DIV
+%token LPAREN RPAREN LBRACE RBRACE SEMICOLON ASSIGN
+
+%start program
+
+%%
+
+program : stmt_list
+
+stmt_list : stmt_list stmt
+          | stmt
+
+stmt : if_stmt
+     | assign_stmt
+     | block
+
+block : LBRACE stmt_list RBRACE
+      | LBRACE RBRACE
+
+if_stmt : IF LPAREN expr RPAREN stmt
+        | IF LPAREN expr RPAREN stmt ELSE stmt
+
+assign_stmt : ID ASSIGN expr SEMICOLON
+
+expr : expr PLUS  term
+     | expr MINUS term
+     | term
+
+term : term TIMES factor
+     | term DIV   factor
+     | factor
+
+factor : LPAREN expr RPAREN
+       | NUM
+       | ID

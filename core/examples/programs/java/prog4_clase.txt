@@ -1,0 +1,51 @@
+public class Cuenta {
+    private int saldo ;
+    private int titular ;
+
+    public Cuenta(int saldoInicial) {
+        this.saldo = saldoInicial ;
+    }
+
+    public int getSaldo() {
+        return this.saldo ;
+    }
+
+    public boolean depositar(int monto) {
+        if (monto <= 0) {
+            return false ;
+        }
+        this.saldo = this.saldo + monto ;
+        return true ;
+    }
+
+    public boolean retirar(int monto) {
+        if (monto <= 0) {
+            return false ;
+        }
+        if (monto > this.saldo) {
+            return false ;
+        }
+        this.saldo = this.saldo - monto ;
+        return true ;
+    }
+
+    public static void transferir(Cuenta origen, Cuenta destino, int monto) {
+        boolean ok = origen.retirar(monto) ;
+        if (ok) {
+            destino.depositar(monto) ;
+        }
+    }
+}
+
+public class BancoApp {
+    public static void main() {
+        Cuenta c1 = new Cuenta(1000) ;
+        Cuenta c2 = new Cuenta(500) ;
+        c1.depositar(200) ;
+        c2.retirar(100) ;
+        Cuenta.transferir(c1, c2, 300) ;
+        int saldo1 = c1.getSaldo() ;
+        int saldo2 = c2.getSaldo() ;
+        boolean resultado = saldo1 > 0 && saldo2 > 0 ;
+    }
+}

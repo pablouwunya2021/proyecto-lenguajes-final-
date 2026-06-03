@@ -215,6 +215,101 @@ bool LR0State::hasCompleteItems() const {
 }
 
 // ════════════════════════════════════════════════════════════
+//  toDOT — autómata LR(0) en formato Graphviz
+//
+//  Cada nodo = un estado con todos sus ítems LR(0)
+//  Formato del label dentro del nodo:
+//    I0
+//    ─────────────────
+//    program → • stmt_list
+//    stmt_list → • stmt_list stmt
+//    stmt_list → • stmt
+//    ...
+// ════════════════════════════════════════════════════════════
+std::string LR0Automaton::toDOT(const std::string& title) const {
+    std::ostringstream d;
+    const auto& prods = grammar_->getProductions();
+
+    d << "digraph LR0 {\n";
+    d << "  rankdir=LR;\n";
+    d << "  bgcolor=\"transparent\";\n";
+    d << "  fontname=\"Courier New\";\n";
+    d << "  node [fontname=\"Courier New\", fontsize=9];\n";
+    d << "  edge [fontname=\"Courier New\", fontsize=10];\n";
+    if (!title.empty())
+        d << "  label=\"" << title << " — " << states_.size() << " estados\";\n"
+          << "  labelloc=t;\n  fontsize=13;\n  fontcolor=\"#ffaa44\";\n";
+
+    // Nodo invisible para flecha inicial
+    d << "  __start [shape=point, style=invis];\n";
+
+    for (const auto& st : states_) {
+        // Construir el label del nodo con los ítems
+        std::ostringstream lbl;
+        lbl << "I" << st.id << "\\n";
+        lbl << "──────────────────\\n";
+
+        for (const auto& item : st.items) {
+            if (item.prodId >= (int)prods.size()) continue;
+            const auto& prod = prods[item.prodId];
+            lbl << prod.lhs.name << " → ";
+            for (int k = 0; k <= (int)prod.rhs.size(); k++) {
+                if (k == item.dotPos) lbl << "•";
+                if (k < (int)prod.rhs.size()) lbl << prod.rhs[k].name;
+                if (k < (int)prod.rhs.size()) lbl << " ";
+            }
+            lbl << "\\n";
+        }
+
+        // Color según tipo de estado
+        std::string fillColor = st.isAccepting ? "\"#2d1a00\"" : "\"#1a1a00\"";
+        std::string borderColor = st.isAccepting ? "\"#ff8800\"" : "\"#886600\"";
+        std::string shape = st.isAccepting ? "doublecircle" : "rectangle";
+        // Usamos rectangle para que los ítems quepan bien
+        shape = "rectangle";
+        if (st.isAccepting) {
+            fillColor  = "\"#2d1a00\"";
+            borderColor = "\"#ff8800\"";
+        }
+
+        d << "  I" << st.id
+          << " [shape=rectangle, label=\"" << lbl.str() << "\""
+          << ", style=\"filled,rounded\""
+          << ", fillcolor=" << fillColor
+          << ", color=" << borderColor
+          << ", fontcolor=\"#ffcc66\""
+          << ", penwidth=" << (st.isAccepting ? "2.5" : "1.0")
+          << "];\n";
+    }
+
+    // Flecha al estado inicial
+    d << "  __start -> I0 [color=\"#ffaa44\", penwidth=2];\n";
+
+    // Transiciones
+    for (const auto& st : states_) {
+        for (const auto& [sym, dest] : st.transitions) {
+            // Color: azul para terminales, verde para no-terminales
+            bool isT = true;
+            for (const auto& nt : grammar_->getNonTerminals())
+                if (nt.name == sym) { isT = false; break; }
+
+            std::string color  = isT ? "\"#4488ff\"" : "\"#44cc44\"";
+            std::string fcolor = isT ? "\"#88aaff\"" : "\"#88ee88\"";
+
+            d << "  I" << st.id << " -> I" << dest
+              << " [label=\"" << sym << "\""
+              << ", color=" << color
+              << ", fontcolor=" << fcolor
+              << ", penwidth=" << (isT ? "1.5" : "2.0")
+              << "];\n";
+        }
+    }
+
+    d << "}\n";
+    return d.str();
+}
+
+// ════════════════════════════════════════════════════════════
 //  toJSON — para el frontend D3.js
 // ════════════════════════════════════════════════════════════
 std::string LR0Automaton::toJSON() const {

@@ -1,0 +1,188 @@
+// Gramatica Lua simplificada — 0 conflictos LALR
+//
+// Correcciones respecto a version anterior:
+//  - block_body: eliminada la alternativa epsilon y la ambiguedad con return_stmt
+//    Ahora block = stmt_list, y return_stmt es un stmt mas
+//  - assign_stmt: simplificado a ID ASSIGN expr (var_list causaba RR con call_stmt)
+//  - call_stmt eliminado como stmt separado: las llamadas van por expr_stmt
+//  - var/var_list eliminados (causaban conflictos masivos con postfix)
+//  - Lua es LR(1) pero LALR puede tener conflictos espurios — gramatica reducida
+//    a subconjunto que LALR maneja sin conflictos
+
+%token FUNCTION END IF THEN ELSEIF ELSE WHILE DO FOR IN
+%token REPEAT UNTIL LOCAL RETURN BREAK AND OR NOT NIL TRUE FALSE
+%token ID INT_LIT FLOAT_LIT
+%token EQ NEQ LEQ GEQ LT GT CONCAT
+%token ASSIGN PLUS MINUS TIMES DIV MOD POW LEN
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+%token SEMICOLON COMMA DOT COLON
+
+// Precedencia — resuelve SR por FOLLOW(stmt) en expresiones
+// LOWEST_PREC: token ficticio para %prec en producciones sin terminal propio
+%left LOWEST_PREC
+%nonassoc EQ NEQ LT GT LEQ GEQ
+%left CONCAT
+%left PLUS MINUS
+%left TIMES DIV MOD
+%right POW
+%left LBRACKET LPAREN DOT COLON
+
+%start program
+
+%%
+
+program : stmt_list
+
+stmt_list : stmt_list stmt
+          | stmt
+
+stmt : assign_stmt
+     | local_stmt
+     | do_block
+     | while_stmt
+     | repeat_stmt
+     | if_stmt
+     | for_num_stmt
+     | for_in_stmt
+     | func_stmt
+     | return_stmt
+     | break_stmt
+     | expr_stmt
+
+// El objetivo de asignación es un 'postfix', que cubre variable
+// simple (ID), indexada (t[1]) y de campo (obj.nombre). Esto genera
+// un conflicto shift/reduce con expr_stmt (postfix . vs postfix . ASSIGN)
+// que se resuelve por defecto a favor de shift → al ver ASSIGN es una
+// asignación; en cualquier otro caso, una expresión-sentencia. La
+// resolución por defecto es la correcta.
+assign_stmt : postfix ASSIGN expr
+
+local_stmt : LOCAL ID
+           | LOCAL ID ASSIGN expr
+           | LOCAL FUNCTION ID func_body
+
+do_block : DO stmt_list END
+
+while_stmt : WHILE expr DO stmt_list END
+
+repeat_stmt : REPEAT stmt_list UNTIL expr
+
+// if/elseif/else con END explicito — sin dangling-else
+if_stmt : IF expr THEN stmt_list END
+        | IF expr THEN stmt_list else_part END
+
+else_part : ELSE stmt_list
+          | elseif_chain
+
+elseif_chain : ELSEIF expr THEN stmt_list
+             | ELSEIF expr THEN stmt_list elseif_chain
+             | ELSEIF expr THEN stmt_list ELSE stmt_list
+
+for_num_stmt : FOR ID ASSIGN expr COMMA expr DO stmt_list END
+             | FOR ID ASSIGN expr COMMA expr COMMA expr DO stmt_list END
+
+for_in_stmt : FOR id_list IN expr_list DO stmt_list END
+
+id_list : id_list COMMA ID
+        | ID
+
+// LOCAL FUNCTION eliminado de func_stmt: identico a local_stmt→LOCAL FUNCTION ID func_body
+// → RR masivo en todos los estados. Solo se mantiene en local_stmt.
+func_stmt : FUNCTION func_name func_body
+
+func_name : ID
+          | func_name DOT ID
+
+func_body : LPAREN RPAREN stmt_list END
+          | LPAREN param_list RPAREN stmt_list END
+
+param_list : param_list COMMA ID
+           | ID
+
+// RETURN sin expr eliminado: mismo problema que Python.
+// FOLLOW(stmt) incluye todos los tokens que empiezan expr.
+return_stmt : RETURN expr_list
+
+break_stmt : BREAK
+
+// expr_stmt usa expr completa — elimina RR con "postfix → postfix LPAREN RPAREN"
+// que tenia la misma forma que "expr_stmt → postfix LPAREN RPAREN"
+expr_stmt : expr
+
+expr_list : expr_list COMMA expr
+          | expr
+
+// Expresiones — izquierdo-recursivo donde es posible
+// or < and < not < compare < concat < suma < mult < unario < potencia < postfix
+
+expr : expr OR  and_expr
+     | and_expr
+
+and_expr : and_expr AND not_expr
+         | not_expr
+
+not_expr : NOT not_expr
+         | compare
+
+compare : compare EQ  concat
+        | compare NEQ concat
+        | compare LT  concat
+        | compare GT  concat
+        | compare LEQ concat
+        | compare GEQ concat
+        | concat %prec LOWEST_PREC
+
+// CONCAT derecho-asociativo en Lua (..)
+concat : additive CONCAT concat
+       | additive %prec LOWEST_PREC
+
+additive : additive PLUS  term
+         | additive MINUS term
+         | term
+
+term : term TIMES unary
+     | term DIV   unary
+     | term MOD   unary
+     | unary
+
+// NOT eliminado de unary: aparecia tambien en not_expr → NOT not_expr,
+// causando RR masivo (r70 vs r73) en todos los estados al compartir
+// el mismo LR(0) core. NOT pertenece solo al nivel booleano (not_expr).
+unary : MINUS unary
+      | LEN   unary
+      | pow_expr
+
+// Potencia derecho-asociativa
+pow_expr : postfix POW unary
+         | postfix %prec LOWEST_PREC
+
+postfix : postfix LBRACKET expr RBRACKET
+        | postfix DOT ID
+        | postfix COLON ID LPAREN RPAREN
+        | postfix COLON ID LPAREN arg_list RPAREN
+        | postfix LPAREN RPAREN
+        | postfix LPAREN arg_list RPAREN
+        | primary
+
+primary : ID
+        | INT_LIT
+        | FLOAT_LIT
+        | TRUE
+        | FALSE
+        | NIL
+        | LPAREN expr RPAREN
+        | table_constructor
+
+table_constructor : LBRACE RBRACE
+                  | LBRACE field_list RBRACE
+
+field_list : field_list COMMA field
+           | field_list SEMICOLON field
+           | field
+
+field : LBRACKET expr RBRACKET ASSIGN expr
+      | ID ASSIGN expr
+      | expr
+
+arg_list : arg_list COMMA expr
+         | expr

@@ -1,0 +1,35 @@
+local t = {}
+t[1] = 10
+t[2] = 20
+t[3] = 30
+
+function map(tabla, factor)
+    local resultado = {}
+    for i = 1, factor, 1 do
+        resultado[i] = tabla[i] * factor
+    end
+    return resultado
+end
+
+function sumar_tabla(t, n)
+    local total = 0
+    local i = 1
+    while i <= n do
+        total = total + t[i]
+        i = i + 1
+    end
+    return total
+end
+
+function buscar(t, valor, n)
+    for i = 1, n, 1 do
+        if t[i] == valor then
+            return i
+        end
+    end
+    return 0
+end
+
+local nueva = map(t, 3)
+local suma = sumar_tabla(t, 3)
+local pos = buscar(t, 20, 3)

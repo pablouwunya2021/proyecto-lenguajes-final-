@@ -1,6 +1,7 @@
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/lenguajes_core.dir
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/yalex_cli.dir
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/yapar_cli.dir
+/Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/natural_cli.dir
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/test.dir
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/edit_cache.dir
 /Users/pablocabrera/lenguajes/proyecto-lenguajes-final-/core/build/CMakeFiles/rebuild_cache.dir

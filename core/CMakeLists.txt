@@ -28,13 +28,24 @@ set(YAPAR_SOURCES
     src/yapar/parser.cpp
 )
 
-add_library(lenguajes_core STATIC ${YALEX_SOURCES} ${YAPAR_SOURCES})
+set(NATURAL_SOURCES
+    src/natural/qeqchi_translator.cpp
+)
+
+add_library(lenguajes_core STATIC
+    ${YALEX_SOURCES}
+    ${YAPAR_SOURCES}
+    ${NATURAL_SOURCES}
+)
 target_link_libraries(lenguajes_core nlohmann_json::nlohmann_json Threads::Threads)
 
-add_executable(yalex_cli src/main_yalex.cpp)
-target_link_libraries(yalex_cli lenguajes_core)
+add_executable(yalex_cli   src/main_yalex.cpp)
+target_link_libraries(yalex_cli   lenguajes_core)
 
-add_executable(yapar_cli src/main_yapar.cpp)
-target_link_libraries(yapar_cli lenguajes_core)
+add_executable(yapar_cli   src/main_yapar.cpp)
+target_link_libraries(yapar_cli   lenguajes_core)
+
+add_executable(natural_cli src/main_natural.cpp)
+target_link_libraries(natural_cli lenguajes_core)
 
 enable_testing()

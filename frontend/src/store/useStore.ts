@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ActiveModule, ActiveView, YAlexResult, YAParResult } from '../types';
+import type { ConsoleEntry } from '../types/console';
 
 const EJEMPLO_YALEX = `(* Especificacion YALex *)
 {
@@ -40,26 +41,82 @@ factor : LPAREN expr RPAREN
        | FLOAT
        | ID`;
 
+let _entryCounter = 0;
+export const makeId = () => `e${Date.now()}-${_entryCounter++}`;
+
 interface IDEState {
-  activeModule: ActiveModule; setActiveModule: (m: ActiveModule) => void;
-  activeView:   ActiveView;   setActiveView:   (v: ActiveView) => void;
-  yalexContent: string; setYalexContent: (c: string) => void;
-  yaparContent: string; setYaparContent: (c: string) => void;
-  inputText:    string; setInputText:    (t: string) => void;
-  yalexResult:  YAlexResult | null; setYalexResult: (r: YAlexResult | null) => void;
-  yaparResult:  YAParResult | null; setYaparResult: (r: YAParResult | null) => void;
-  isLoading:  boolean; setLoading:    (l: boolean) => void;
-  globalError: string | null; setGlobalError: (e: string | null) => void;
+  activeModule:    ActiveModule;
+  activeView:      ActiveView;
+  yalexContent:    string;
+  yaparContent:    string;
+  inputText:       string;
+  yalexResult:     YAlexResult | null;
+  yaparResult:     YAParResult | null;
+  isLoading:       boolean;
+  globalError:     string | null;
+  consoleEntries:  ConsoleEntry[];
+  consoleOpen:     boolean;
+
+  setActiveModule:   (m: ActiveModule) => void;
+  setActiveView:     (v: ActiveView)   => void;
+  setYalexContent:   (c: string)       => void;
+  setYaparContent:   (c: string)       => void;
+  setInputText:      (t: string)       => void;
+  setYalexResult:    (r: YAlexResult | null) => void;
+  setYaparResult:    (r: YAParResult | null) => void;
+  setLoading:        (l: boolean)      => void;
+  setGlobalError:    (e: string | null) => void;
+  addConsoleEntry:   (e: Omit<ConsoleEntry, 'id' | 'timestamp'>) => void;
+  addConsoleEntries: (es: Omit<ConsoleEntry, 'id' | 'timestamp'>[]) => void;
+  clearConsole:      () => void;
+  setConsoleOpen:    (open: boolean) => void;
+
+  resetResults: () => void;
 }
 
 export const useStore = create<IDEState>((set) => ({
-  activeModule: 'yalex', setActiveModule: (m) => set({ activeModule: m, yalexResult: null, yaparResult: null }),
-  activeView:   'editor', setActiveView:   (v) => set({ activeView: v }),
-  yalexContent: EJEMPLO_YALEX, setYalexContent: (c) => set({ yalexContent: c }),
-  yaparContent: EJEMPLO_YAPAR, setYaparContent: (c) => set({ yaparContent: c }),
-  inputText:    'x + 42;',     setInputText:    (t) => set({ inputText: t }),
-  yalexResult:  null, setYalexResult: (r) => set({ yalexResult: r }),
-  yaparResult:  null, setYaparResult: (r) => set({ yaparResult: r }),
-  isLoading:    false, setLoading:    (l) => set({ isLoading: l }),
-  globalError:  null,  setGlobalError: (e) => set({ globalError: e }),
+  activeModule:   'yalex',
+  activeView:     'editor',
+  yalexContent:   EJEMPLO_YALEX,
+  yaparContent:   EJEMPLO_YAPAR,
+  inputText:      'x + 42;',
+  yalexResult:    null,
+  yaparResult:    null,
+  isLoading:      false,
+  globalError:    null,
+  consoleEntries: [],
+  consoleOpen:    true,
+
+  setActiveModule:  (m) => set({ activeModule: m }),
+  setActiveView:    (v) => set({ activeView: v }),
+  setYalexContent:  (c) => set({ yalexContent: c }),
+  setYaparContent:  (c) => set({ yaparContent: c }),
+  setInputText:     (t) => set({ inputText: t }),
+  setYalexResult:   (r) => set({ yalexResult: r }),
+  setYaparResult:   (r) => set({ yaparResult: r }),
+  setLoading:       (l) => set({ isLoading: l }),
+  setGlobalError:   (e) => set({ globalError: e }),
+  setConsoleOpen:   (open) => set({ consoleOpen: open }),
+
+  addConsoleEntry: (e) => set((s) => ({
+    consoleEntries: [...s.consoleEntries, { ...e, id: makeId(), timestamp: Date.now() }],
+    consoleOpen: true,
+  })),
+
+  addConsoleEntries: (es) => set((s) => ({
+    consoleEntries: [
+      ...s.consoleEntries,
+      ...es.map(e => ({ ...e, id: makeId(), timestamp: Date.now() })),
+    ],
+    consoleOpen: true,
+  })),
+
+  clearConsole: () => set({ consoleEntries: [] }),
+
+  resetResults: () => set({
+    yalexResult:  null,
+    yaparResult:  null,
+    globalError:  null,
+    isLoading:    false,
+  }),
 }));

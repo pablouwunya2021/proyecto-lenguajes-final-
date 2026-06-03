@@ -1,0 +1,43 @@
+(* ============================================================
+   cow.yalex — Especificación léxica del lenguaje COW
+   
+   COW es un lenguaje esotérico donde cada instrucción tiene
+   exactamente 3 caracteres. Hay 12 instrucciones posibles,
+   todas variantes de "moo" con diferentes capitalizaciones.
+   
+   El parser léxico tokeniza secuencias de instrucciones
+   separadas por cualquier cantidad de espacios/saltos de línea.
+   
+   Instrucciones:
+     0  moo  - loop end / búsqueda hacia atrás
+     1  mOo  - mover puntero izquierda
+     2  moO  - mover puntero derecha
+     3  mOO  - ejecutar valor de memoria como instrucción
+     4  Moo  - leer/imprimir ASCII
+     5  MOo  - decrementar bloque actual
+     6  MoO  - incrementar bloque actual
+     7  MOO  - inicio de loop (while)
+     8  OOO  - poner cero en bloque actual
+     9  MMM  - copiar/pegar registro
+    10  OOM  - imprimir número
+    11  oom  - leer número
+============================================================ *)
+
+{
+  let ws = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "moo"   { LOOP_END }
+  | "mOo"   { MEM_LEFT }
+  | "moO"   { MEM_RIGHT }
+  | "mOO"   { EXEC_MEM }
+  | "Moo"   { IO_ASCII }
+  | "MOo"   { DECREMENT }
+  | "MoO"   { INCREMENT }
+  | "MOO"   { LOOP_BEGIN }
+  | "OOO"   { ZERO_MEM }
+  | "MMM"   { REGISTER }
+  | "OOM"   { PRINT_INT }
+  | "oom"   { READ_INT }
+  | {ws}+   { WHITESPACE }

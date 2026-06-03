@@ -1,0 +1,22 @@
+SELECT COUNT(id), SUM(salario), AVG(salario), MAX(salario), MIN(salario)
+FROM empleados
+WHERE activo > 0 ;
+
+SELECT departamento, COUNT(id), AVG(salario)
+FROM empleados
+GROUP BY departamento
+ORDER BY AVG(salario) DESC ;
+
+SELECT departamento, COUNT(id) AS total, SUM(salario) AS masa_salarial
+FROM empleados
+WHERE salario > 30000
+GROUP BY departamento
+HAVING COUNT(id) > 5
+ORDER BY masa_salarial DESC
+LIMIT 5 ;
+
+SELECT e.nombre, e.salario, d.nombre AS dep
+FROM empleados e
+JOIN departamentos d ON e.dep_id = d.id
+WHERE e.salario BETWEEN 30000 AND 80000
+ORDER BY d.nombre ASC, e.salario DESC ;

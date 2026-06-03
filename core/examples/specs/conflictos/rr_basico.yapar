@@ -1,0 +1,44 @@
+// ══════════════════════════════════════════════════════════════
+// CONFLICTO RR — Reduce/Reduce básico
+// ══════════════════════════════════════════════════════════════
+//
+// Dos no-terminales distintos pueden derivar exactamente la misma
+// cadena en el mismo contexto. Cuando el parser termina de leer
+// esa cadena no puede decidir POR CUÁL producción reducir.
+//
+//   expr : var | const
+//   var   : ID
+//   const : ID
+//
+//   Con input "x ;":
+//   Pila: [ID]   Lookahead: SEMICOLON
+//   - Reduce var  : ID   ← ¿es una variable?
+//   - Reduce const: ID   ← ¿o una constante?
+//   El parser no tiene forma de saberlo → conflicto reduce/reduce.
+//
+// IMPORTANTE: los conflictos RR NO se resuelven con %left/%right.
+// La precedencia solo decide entre shift y reduce, no entre dos
+// reduces. Para eliminarlo hay que REESTRUCTURAR la gramática
+// (p. ej. fusionar var y const en un solo no-terminal):
+//
+//   expr : ID
+//
+// Conflictos esperados: 1 RR.
+
+%token ID SEMICOLON
+
+%start program
+
+%%
+
+program : program stmt
+        | stmt
+
+stmt : expr SEMICOLON
+
+expr : var
+     | const
+
+var   : ID
+
+const : ID

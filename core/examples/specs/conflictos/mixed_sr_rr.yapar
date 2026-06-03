@@ -1,0 +1,50 @@
+// ══════════════════════════════════════════════════════════════
+// CONFLICTO MIXTO — Shift/Reduce y Reduce/Reduce juntos
+// ══════════════════════════════════════════════════════════════
+//
+// Esta gramática combina las DOS clases de conflicto a la vez,
+// para contrastar cómo se resuelve cada una.
+//
+// FUENTE 1 — Dangling else (conflicto SHIFT/REDUCE):
+//   if_stmt : IF LPAREN expr RPAREN stmt
+//           | IF LPAREN expr RPAREN stmt ELSE stmt
+//   Al ver ELSE tras un if interno, ¿se shiftea (se asocia al if
+//   más cercano) o se reduce? → 1 SR.
+//   SE RESUELVE con precedencia: %right ELSE  (o regla del if más
+//   cercano), porque es una decisión shift-vs-reduce.
+//
+// FUENTE 2 — Nombre ambiguo (conflicto REDUCE/REDUCE):
+//   expr : var | const ;  var : ID ;  const : ID
+//   Al ver ID, ¿se reduce a var o a const? → 1 RR.
+//   NO se resuelve con precedencia: hay que reestructurar la
+//   gramática (fusionar var y const).
+//
+// Conflictos esperados: 1 SR (dangling else) + 2 RR (var/const, que
+// aparece tanto en la condición del if como en la asignación).
+
+%token IF ELSE ID NUM LPAREN RPAREN SEMICOLON ASSIGN
+
+%start program
+
+%%
+
+program : program stmt
+        | stmt
+
+stmt : if_stmt
+     | assign_stmt
+
+// FUENTE SR: dangling else
+if_stmt : IF LPAREN expr RPAREN stmt
+        | IF LPAREN expr RPAREN stmt ELSE stmt
+
+assign_stmt : ID ASSIGN expr SEMICOLON
+
+// FUENTE RR: un ID puede reducir a 'var' o a 'const'
+expr : var
+     | const
+     | NUM
+
+var   : ID
+
+const : ID

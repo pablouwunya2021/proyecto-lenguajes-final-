@@ -1,0 +1,61 @@
+local Animal = {}
+
+function Animal.nuevo(nombre, sonido)
+    local obj = {}
+    obj.nombre = nombre
+    obj.sonido = sonido
+    obj.energia = 100
+    return obj
+end
+
+function Animal.comer(self, cantidad)
+    self.energia = self.energia + cantidad
+    if self.energia > 200 then
+        self.energia = 200
+    end
+end
+
+function Animal.dormir(self, horas)
+    local ganancia = horas * 10
+    self:comer(ganancia)
+end
+
+function Animal.esta_cansado(self)
+    if self.energia < 30 then
+        return true
+    else
+        return false
+    end
+end
+
+local Perro = {}
+
+function Perro.nuevo(nombre)
+    local obj = Animal.nuevo(nombre, 42)
+    obj.trucos = {}
+    return obj
+end
+
+function Perro.aprender(self, truco)
+    local n = #self.trucos + 1
+    self.trucos[n] = truco
+    self.energia = self.energia - 10
+end
+
+function contar_trucos(perro, maximo)
+    local count = 0
+    local i = 1
+    while i <= maximo do
+        if perro.trucos[i] ~= nil then
+            count = count + 1
+        end
+        i = i + 1
+    end
+    return count
+end
+
+local fido = Perro.nuevo(42)
+fido:comer(20)
+fido:dormir(8)
+local cansado = Animal.esta_cansado(fido)
+local n = contar_trucos(fido, 10)

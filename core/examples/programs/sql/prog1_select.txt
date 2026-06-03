@@ -1,0 +1,9 @@
+SELECT nombre FROM empleados ;
+
+SELECT nombre, apellido, salario FROM empleados WHERE salario > 50000 ;
+
+SELECT DISTINCT departamento FROM empleados ;
+
+SELECT COUNT(salario) FROM empleados WHERE activo > 0 ;
+
+SELECT nombre, salario FROM empleados ORDER BY salario DESC LIMIT 10 ;

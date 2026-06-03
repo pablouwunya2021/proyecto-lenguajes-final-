@@ -92,8 +92,9 @@ ParseResult Parser::parse(const std::vector<yalex::Token>& tokens) const {
                 // Reducimos: sacamos |rhs| elementos y empujamos el LHS
                 int prodId = action.value;
                 if (prodId >= (int)grammar_->getProductions().size()) {
-                    result.errors.push_back("ID de produccion invalido: " +
-                                            std::to_string(prodId));
+                    result.errors.push_back("Linea " +
+                        std::to_string(currentToken().line) +
+                        ": ID de produccion invalido: " + std::to_string(prodId));
                     return result;
                 }
 
@@ -125,8 +126,11 @@ ParseResult Parser::parse(const std::vector<yalex::Token>& tokens) const {
                 int topState = stateStack.back();
                 int gotoState = getGoto(topState, prod.lhs.name);
                 if (gotoState == -1) {
-                    result.errors.push_back("Error GOTO: estado " +
-                        std::to_string(topState) + " con " + prod.lhs.name);
+                    result.errors.push_back("Linea " +
+                        std::to_string(currentToken().line) +
+                        " (regla yapar:" + std::to_string(prod.sourceLine) +
+                        "): Error GOTO: estado " + std::to_string(topState) +
+                        " con " + prod.lhs.name);
                     return result;
                 }
 

@@ -1,259 +1,280 @@
 // ============================================================
-//  AutomatonView.tsx — Visualización del autómata LR(0) con D3.js
+//  AutomatonView.tsx — Visualización del autómata LR(0)
 //
-//  Los nodos se colocan en un layout de fuerza (force-directed).
-//  - Nodos azules: estados normales
-//  - Nodos verdes con brillo: estados de aceptación
-//  - El estado inicial tiene una flecha de entrada
-//  - Al hover sobre un nodo se muestran sus ítems LR(0)
+//  Muestra únicamente el autómata sintáctico LR(0) del módulo
+//  YAPar (el DFA léxico se removió de esta vista).
+//
+//  Flujo:
+//    resultado C++ → campo automaton_dot (string DOT)
+//    → POST /graphviz/render → SVG (grafos pequeños, inline)
+//    → <div dangerouslySetInnerHTML />
+//
+//  Grafos grandes (programas grandes → muchos estados):
+//    el SVG inline congela el navegador y el render puede dar timeout.
+//    En ese caso NO se renderiza en pantalla: se descarga la imagen
+//    automáticamente como PNG y se ofrecen botones de descarga.
 // ============================================================
 import { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
 import { useStore } from '../../store/useStore';
-import type { LR0State } from '../../types';
+import type { ModuleTheme } from '../../types/themes';
 
-interface D3Node extends d3.SimulationNodeDatum {
-  id: number;
-  accepting: boolean;
-  items: string[];
+interface Props { theme: ModuleTheme }
+
+const API = 'http://localhost:8000';
+
+// A partir de cuántos estados consideramos el grafo "grande" y
+// pasamos al modo descarga en vez de render inline.
+const LARGE_STATES = 50;
+
+// ── Descarga una imagen del grafo (svg|png) ─────────────────
+async function downloadGraph(dot: string, format: 'svg' | 'png') {
+  const res = await fetch(`${API}/graphviz/render`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ dot, engine: 'dot', format, download: true }),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || `Error ${res.status}`);
+  }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `automata_lr0.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
-interface D3Link extends d3.SimulationLinkDatum<D3Node> {
-  label: string;
-}
-
-export function AutomatonView() {
-  const { yaparResult } = useStore();
-  const svgRef  = useRef<SVGSVGElement>(null);
-  const [hovered, setHovered] = useState<LR0State | null>(null);
+// ── Hook que convierte DOT a SVG vía API ────────────────────
+function useDotSvg(dot: string | null): {
+  svg:     string | null;
+  loading: boolean;
+  error:   string | null;
+} {
+  const [svg,     setSvg]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
-    if (!yaparResult?.automaton || !svgRef.current) return;
+    if (!dot) { setSvg(null); setError(null); return; }
+    setLoading(true);
+    setError(null);
 
-    const { states, transitions } = yaparResult.automaton;
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
-
-    const W = svgRef.current.clientWidth  || 800;
-    const H = svgRef.current.clientHeight || 500;
-
-    // Fondo con gradiente sutil
-    const defs = svg.append('defs');
-
-    // Gradiente para nodos normales
-    const grad = defs.append('radialGradient').attr('id', 'node-grad');
-    grad.append('stop').attr('offset', '0%').attr('stop-color', '#1c2128');
-    grad.append('stop').attr('offset', '100%').attr('stop-color', '#161b22');
-
-    // Gradiente para nodos de aceptación
-    const gradAcc = defs.append('radialGradient').attr('id', 'node-accept-grad');
-    gradAcc.append('stop').attr('offset', '0%').attr('stop-color', '#065f46');
-    gradAcc.append('stop').attr('offset', '100%').attr('stop-color', '#022c22');
-
-    // Marcador de flecha
-    defs.append('marker')
-      .attr('id', 'arrow')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 28).attr('refY', 0)
-      .attr('markerWidth', 6).attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-5L10,0L0,5')
-      .attr('fill', '#484f58');
-
-    // Marcador flecha para self-loops
-    defs.append('marker')
-      .attr('id', 'arrow-self')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 10).attr('refY', 0)
-      .attr('markerWidth', 6).attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-5L10,0L0,5')
-      .attr('fill', '#484f58');
-
-    // Zoom y pan
-    const g = svg.append('g');
-    svg.call(
-      d3.zoom<SVGSVGElement, unknown>()
-        .scaleExtent([0.3, 3])
-        .on('zoom', (e) => g.attr('transform', e.transform))
-    );
-
-    // Preparar nodos y links para D3
-    const nodes: D3Node[] = states.map(s => ({
-      id: s.id, accepting: s.accepting, items: s.items,
-    }));
-
-    // Agrupar transiciones paralelas (mismo from→to con diferentes labels)
-    const linkMap = new Map<string, D3Link & { labels: string[] }>();
-    transitions.forEach(t => {
-      const key = `${t.from}-${t.to}`;
-      if (!linkMap.has(key)) {
-        linkMap.set(key, {
-          source: t.from, target: t.to,
-          label: t.label, labels: [t.label]
-        });
-      } else {
-        linkMap.get(key)!.labels.push(t.label);
-        linkMap.get(key)!.label = linkMap.get(key)!.labels.join(', ');
-      }
-    });
-    const links = Array.from(linkMap.values());
-
-    // Simulación de fuerzas
-    const sim = d3.forceSimulation<D3Node>(nodes)
-      .force('link', d3.forceLink<D3Node, D3Link>(links)
-        .id(d => d.id).distance(120).strength(0.5))
-      .force('charge', d3.forceManyBody().strength(-400))
-      .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide(45));
-
-    // Dibujar enlaces
-    const link = g.selectAll('.link')
-      .data(links).enter().append('g').attr('class', 'link');
-
-    link.append('line')
-      .attr('stroke', '#30363d')
-      .attr('stroke-width', 1.5)
-      .attr('marker-end', 'url(#arrow)');
-
-    link.append('text')
-      .attr('fill', '#8b949e')
-      .attr('font-size', '11px')
-      .attr('font-family', 'JetBrains Mono, monospace')
-      .attr('text-anchor', 'middle')
-      .text(d => d.label.length > 15 ? d.label.substring(0, 12) + '...' : d.label);
-
-    // Dibujar nodos
-    const node = g.selectAll('.node')
-      .data(nodes).enter().append('g')
-      .attr('class', 'node')
-      .style('cursor', 'pointer')
-      .call(
-        d3.drag<SVGGElement, D3Node>()
-          .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-          .on('drag',  (e, d) => { d.fx=e.x; d.fy=e.y; })
-          .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
-      );
-
-    // Círculo exterior (brillo para aceptación)
-    node.filter(d => d.accepting)
-      .append('circle')
-      .attr('r', 28)
-      .attr('fill', 'none')
-      .attr('stroke', '#10b981')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '4,2')
-      .attr('opacity', 0.6);
-
-    // Círculo principal
-    node.append('circle')
-      .attr('r', 22)
-      .attr('fill', d => d.accepting ? 'url(#node-accept-grad)' : 'url(#node-grad)')
-      .attr('stroke', d => d.accepting ? '#10b981' : '#7c3aed')
-      .attr('stroke-width', d => d.accepting ? 2 : 1.5)
-      .on('mouseover', (_, d) => {
-        setHovered(states.find(s => s.id === d.id) || null);
+    fetch(`${API}/graphviz/render`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ dot, engine: 'dot', format: 'svg' }),
+    })
+      .then(async r => {
+        if (!r.ok) throw new Error((await r.text()) || `Error ${r.status}`);
+        return r.text();
       })
-      .on('mouseout', () => setHovered(null));
+      .then(text => {
+        if (text.includes('<svg')) setSvg(text);
+        else setError('Respuesta inesperada del servidor Graphviz');
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [dot]);
 
-    // Texto del ID del estado
-    node.append('text')
-      .attr('fill', d => d.accepting ? '#10b981' : '#c9d1d9')
-      .attr('font-size', '13px')
-      .attr('font-weight', '600')
-      .attr('font-family', 'JetBrains Mono, monospace')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
-      .text(d => `I${d.id}`)
-      .style('pointer-events', 'none');
+  return { svg, loading, error };
+}
 
-    // Flecha de entrada al estado inicial
-    const startNode = nodes.find(n => n.id === 0);
-    if (startNode) {
-      g.append('line')
-        .attr('class', 'start-arrow')
-        .attr('stroke', '#7c3aed')
-        .attr('stroke-width', 2)
-        .attr('marker-end', 'url(#arrow)');
+// ── Componente principal ────────────────────────────────────
+export function AutomatonView({ theme }: Props) {
+  const { yaparResult } = useStore();
+  const lr0Dot = yaparResult?.automaton_dot ?? null;
+  const states = yaparResult?.automaton?.states?.length ?? 0;
+  const isLarge = states > LARGE_STATES;
+
+  // El usuario puede forzar el render inline de un grafo grande.
+  const [forceRender, setForceRender] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [dlError, setDlError] = useState<string | null>(null);
+  const [dlBusy, setDlBusy] = useState(false);
+
+  // Solo pedimos el SVG inline si el grafo no es grande (o el usuario lo forzó)
+  const dotForInline = lr0Dot && (!isLarge || forceRender) ? lr0Dot : null;
+  const { svg, loading, error } = useDotSvg(dotForInline);
+
+  // Descarga automática para grafos grandes: una sola vez por cada DOT nuevo.
+  const autoDownloadedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (lr0Dot && isLarge && !forceRender && autoDownloadedFor.current !== lr0Dot) {
+      autoDownloadedFor.current = lr0Dot;
+      setDlBusy(true);
+      setDlError(null);
+      downloadGraph(lr0Dot, 'png')
+        .catch(e => setDlError(e.message))
+        .finally(() => setDlBusy(false));
     }
+  }, [lr0Dot, isLarge, forceRender]);
 
-    // Actualizar posiciones en cada tick
-    sim.on('tick', () => {
-      link.select('line')
-        .attr('x1', d => (d.source as D3Node).x!)
-        .attr('y1', d => (d.source as D3Node).y!)
-        .attr('x2', d => (d.target as D3Node).x!)
-        .attr('y2', d => (d.target as D3Node).y!);
+  // Reset del estado al cambiar de grafo
+  useEffect(() => { setForceRender(false); setZoom(1); setDlError(null); }, [lr0Dot]);
 
-      link.select('text')
-        .attr('x', d => ((d.source as D3Node).x! + (d.target as D3Node).x!) / 2)
-        .attr('y', d => ((d.source as D3Node).y! + (d.target as D3Node).y!) / 2 - 6);
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom(z => Math.max(0.2, Math.min(4, z - e.deltaY * 0.001)));
+  };
 
-      node.attr('transform', d => `translate(${d.x},${d.y})`);
+  const runDownload = (format: 'svg' | 'png') => {
+    if (!lr0Dot) return;
+    setDlBusy(true);
+    setDlError(null);
+    downloadGraph(lr0Dot, format)
+      .catch(e => setDlError(e.message))
+      .finally(() => setDlBusy(false));
+  };
 
-      // Flecha inicial
-      if (startNode) {
-        g.select('.start-arrow')
-          .attr('x1', (startNode.x ?? 0) - 60)
-          .attr('y1', startNode.y ?? 0)
-          .attr('x2', (startNode.x ?? 0) - 25)
-          .attr('y2', startNode.y ?? 0);
-      }
-    });
-
-    return () => { sim.stop(); };
-  }, [yaparResult]);
-
-  if (!yaparResult) {
-    return (
-      <div className="flex items-center justify-center h-full text-text-secondary">
-        <div className="text-center">
-          <div className="text-5xl mb-4">🔷</div>
-          <p className="text-lg font-medium">Ejecuta YAPar para visualizar el autómata</p>
-          <p className="text-sm mt-2 text-text-muted">El autómata LR(0) aparecerá aquí</p>
-        </div>
-      </div>
-    );
-  }
+  // Botones de descarga reutilizables
+  const downloadButtons = (
+    <div className="flex items-center gap-2">
+      <button onClick={() => runDownload('png')} disabled={dlBusy || !lr0Dot}
+        className="px-2 py-0.5 rounded text-xs"
+        style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`,
+                 color: theme.textMuted, cursor: dlBusy ? 'wait' : 'pointer' }}>
+        ↓ PNG
+      </button>
+      <button onClick={() => runDownload('svg')} disabled={dlBusy || !lr0Dot}
+        className="px-2 py-0.5 rounded text-xs"
+        style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`,
+                 color: theme.textMuted, cursor: dlBusy ? 'wait' : 'pointer' }}>
+        ↓ SVG
+      </button>
+    </div>
+  );
 
   return (
-    <div className="relative w-full h-full">
-      <svg ref={svgRef} className="w-full h-full" />
+    <div className="flex flex-col h-full" style={{ fontFamily: theme.fontFamily }}>
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-4 py-2 border-b text-xs flex-shrink-0"
+        style={{ background: theme.bgSecondary, borderColor: theme.borderColor }}
+      >
+        <div className="flex items-center gap-3">
+          <span style={{ color: theme.textPrimary, fontWeight: 600 }}>Autómata LR(0)</span>
+          {states > 0 && (
+            <span style={{ color: theme.textMuted }}>{states} estados</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {svg && (
+            <>
+              <span style={{ color: theme.textMuted }}>Zoom: {Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(1)} className="px-2 py-0.5 rounded text-xs"
+                style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`, color: theme.textMuted, cursor: 'pointer' }}>
+                100%
+              </button>
+              <button onClick={() => setZoom(z => Math.min(4, z + 0.25))} className="px-2 py-0.5 rounded text-xs"
+                style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`, color: theme.textMuted, cursor: 'pointer' }}>
+                +
+              </button>
+              <button onClick={() => setZoom(z => Math.max(0.2, z - 0.25))} className="px-2 py-0.5 rounded text-xs"
+                style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`, color: theme.textMuted, cursor: 'pointer' }}>
+                −
+              </button>
+            </>
+          )}
+          {lr0Dot && downloadButtons}
+        </div>
+      </div>
 
-      {/* Panel de información del estado hover */}
-      {hovered && (
-        <div className="absolute top-4 right-4 card max-w-xs animate-fade-in z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`w-3 h-3 rounded-full ${hovered.accepting ? 'bg-accent-green' : 'bg-accent-purple'}`} />
-            <span className="font-mono font-bold text-text-primary">Estado I{hovered.id}</span>
-            {hovered.accepting && <span className="text-xs text-accent-green">ACEPTA</span>}
-          </div>
-          <div className="space-y-1">
-            {hovered.items.slice(0, 6).map((item, i) => (
-              <div key={i} className="text-xs font-mono text-text-secondary bg-bg-secondary px-2 py-1 rounded">
-                {item}
-              </div>
-            ))}
-            {hovered.items.length > 6 && (
-              <div className="text-xs text-text-muted">+{hovered.items.length - 6} más...</div>
+      {/* Contenido */}
+      <div
+        className="flex-1 overflow-auto flex items-start justify-start"
+        onWheel={svg ? handleWheel : undefined}
+        style={{ background: theme.bg, cursor: svg ? 'zoom-in' : 'default', padding: '12px' }}
+      >
+        {/* Grafo grande → modo descarga */}
+        {lr0Dot && isLarge && !forceRender && (
+          <div className="m-auto mt-16 text-center px-6 max-w-md">
+            <p className="text-sm" style={{ color: theme.textPrimary, fontWeight: 600 }}>
+              Autómata demasiado grande para mostrarse en pantalla
+            </p>
+            <p className="text-xs mt-2" style={{ color: theme.textMuted }}>
+              Con {states} estados, renderizarlo en el navegador lo congelaría.
+              {dlBusy
+                ? ' Descargando la imagen PNG...'
+                : dlError
+                  ? ''
+                  : ' La imagen PNG se descargó automáticamente.'}
+            </p>
+
+            {dlError && (
+              <p className="text-xs mt-2 font-mono" style={{ color: theme.accentB }}>
+                Error al descargar: {dlError}
+              </p>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* Leyenda */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-4 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-bg-card border border-accent-purple" />
-          <span>Estado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-bg-card border-2 border-accent-green" />
-          <span>Aceptación</span>
-        </div>
-        <div className="text-text-muted">Scroll: zoom · Drag: mover</div>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <button onClick={() => runDownload('png')} disabled={dlBusy}
+                className="px-3 py-1 rounded text-xs"
+                style={{ background: theme.accentA, color: theme.bg, border: 'none',
+                         cursor: dlBusy ? 'wait' : 'pointer', fontWeight: 600 }}>
+                {dlBusy ? 'Descargando…' : 'Descargar PNG'}
+              </button>
+              <button onClick={() => runDownload('svg')} disabled={dlBusy}
+                className="px-3 py-1 rounded text-xs"
+                style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`,
+                         color: theme.textMuted, cursor: dlBusy ? 'wait' : 'pointer' }}>
+                Descargar SVG
+              </button>
+            </div>
+
+            <button onClick={() => setForceRender(true)}
+              className="mt-4 text-xs underline"
+              style={{ background: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer' }}>
+              Mostrar en pantalla de todas formas (puede congelar el navegador)
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center gap-3 m-auto mt-20" style={{ color: theme.textMuted }}>
+            <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
+            <span>Renderizando con Graphviz...</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="m-auto mt-20 text-center px-6" style={{ color: theme.accentB }}>
+            <p className="text-sm font-mono">Error: {error}</p>
+            <p className="text-xs mt-2" style={{ color: theme.textMuted }}>
+              El grafo puede ser demasiado grande. Prueba a descargarlo:
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <button onClick={() => runDownload('png')} disabled={dlBusy}
+                className="px-3 py-1 rounded text-xs"
+                style={{ background: theme.accentA, color: theme.bg, border: 'none',
+                         cursor: dlBusy ? 'wait' : 'pointer', fontWeight: 600 }}>
+                Descargar PNG
+              </button>
+              <button onClick={() => runDownload('svg')} disabled={dlBusy}
+                className="px-3 py-1 rounded text-xs"
+                style={{ background: 'transparent', border: `1px solid ${theme.borderColor}`,
+                         color: theme.textMuted, cursor: dlBusy ? 'wait' : 'pointer' }}>
+                Descargar SVG
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && !lr0Dot && (
+          <div className="m-auto mt-20 text-center" style={{ color: theme.textMuted }}>
+            <p className="text-sm">Ejecuta el análisis YAPar para ver el autómata LR(0)</p>
+          </div>
+        )}
+
+        {svg && (
+          <div
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.1s ease' }}
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        )}
       </div>
     </div>
   );

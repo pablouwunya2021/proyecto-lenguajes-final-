@@ -1,0 +1,43 @@
+// ============================================================
+// cow.yapar — Gramática sintáctica del lenguaje COW
+//
+// Un programa COW es una secuencia de instrucciones.
+// No hay necesidad de separadores entre instrucciones porque
+// cada una tiene exactamente 3 caracteres.
+//
+// Nota estructural sobre loops:
+//   MOO e LOOP_END forman un while-loop juntos.
+//   MOO = inicio del loop si memoria != 0, skip si memoria == 0
+//   LOOP_END (moo) = vuelve al MOO correspondiente
+//
+// Ejemplo válido (pone 3 en memoria, luego la imprime como int):
+//   MoO MoO MoO OOM
+//
+// Ejemplo de loop (decrementa hasta 0, imprimiendo cada valor):
+//   MOO OOM MOo LOOP_END
+// ============================================================
+
+%token LOOP_END MEM_LEFT MEM_RIGHT EXEC_MEM IO_ASCII
+%token DECREMENT INCREMENT LOOP_BEGIN ZERO_MEM
+%token REGISTER PRINT_INT READ_INT WHITESPACE
+%start program
+
+%%
+
+program : instr_list
+
+instr_list : instr_list instr
+           | instr
+
+instr : LOOP_BEGIN
+      | LOOP_END
+      | MEM_LEFT
+      | MEM_RIGHT
+      | EXEC_MEM
+      | IO_ASCII
+      | DECREMENT
+      | INCREMENT
+      | ZERO_MEM
+      | REGISTER
+      | PRINT_INT
+      | READ_INT

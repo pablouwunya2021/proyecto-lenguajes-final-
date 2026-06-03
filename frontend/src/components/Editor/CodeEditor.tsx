@@ -1,80 +1,120 @@
 // ============================================================
-//  CodeEditor.tsx — Editor Monaco con syntax highlighting
+//  CodeEditor.tsx — Monaco Editor con tema dinámico y marcadores
 // ============================================================
-import Editor from '@monaco-editor/react';
+import Editor, { type Monaco } from '@monaco-editor/react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
-
-// Tema personalizado oscuro para el IDE
-const DARK_THEME = {
-  base: 'vs-dark' as const,
-  inherit: true,
-  rules: [
-    { token: 'comment',  foreground: '6e7681' },
-    { token: 'keyword',  foreground: 'ff7b72' },
-    { token: 'string',   foreground: 'a5d6ff' },
-    { token: 'number',   foreground: 'ffa657' },
-    { token: 'operator', foreground: '79c0ff' },
-  ],
-  colors: {
-    'editor.background':          '#161b22',
-    'editor.foreground':          '#e6edf3',
-    'editor.lineHighlightBackground': '#1c2128',
-    'editorLineNumber.foreground':    '#484f58',
-    'editorLineNumber.activeForeground': '#8b949e',
-    'editor.selectionBackground': '#264f7840',
-    'editorCursor.foreground':    '#7c3aed',
-    'editor.inactiveSelectionBackground': '#1c2128',
-  },
-};
+import type { ModuleTheme } from '../../types/themes';
+import type { MonacoMarker } from '../../types/console';
 
 interface Props {
   language: 'yalex' | 'yapar' | 'plaintext';
-  height?: string;
+  height?:  string;
+  theme:    ModuleTheme;
+  value?:   string;
+  markers?: MonacoMarker[];
 }
 
-export function CodeEditor({ language, height = '100%' }: Props) {
+export function CodeEditor({ language, height = '100%', theme, value: externalValue, markers = [] }: Props) {
   const {
     yalexContent, yaparContent, inputText,
     setYalexContent, setYaparContent, setInputText,
     activeModule,
   } = useStore();
 
-  const value = language === 'plaintext'
-    ? inputText
-    : activeModule === 'yalex' ? yalexContent : yaparContent;
+  const monacoRef = useRef<Monaco | null>(null);
+  const editorRef = useRef<any>(null);
 
-  const onChange = (val: string | undefined) => {
+  const isTerminal = activeModule === 'yalex' || activeModule === 'yapar';
+
+  const value = externalValue !== undefined
+    ? externalValue
+    : language === 'plaintext'
+      ? inputText
+      : activeModule === 'yalex' ? yalexContent : yaparContent;
+
+  const onChange = (val?: string) => {
     if (!val) return;
     if (language === 'plaintext') setInputText(val);
     else if (activeModule === 'yalex') setYalexContent(val);
     else setYaparContent(val);
   };
 
-  const monacoLang = language === 'plaintext' ? 'plaintext' : 'plaintext';
+  // Aplicar marcadores cuando cambian
+  useEffect(() => {
+    if (!monacoRef.current || !editorRef.current) return;
+    const model = editorRef.current.getModel();
+    if (!model) return;
+
+    const monaco = monacoRef.current;
+    const monacoMarkers = markers.map(m => ({
+      startLineNumber: m.startLineNumber,
+      startColumn:     m.startColumn,
+      endLineNumber:   m.endLineNumber,
+      endColumn:       m.endColumn,
+      message:         m.message,
+      severity:
+        m.severity === 'error'   ? monaco.MarkerSeverity.Error   :
+        m.severity === 'warning' ? monaco.MarkerSeverity.Warning :
+                                   monaco.MarkerSeverity.Info,
+    }));
+
+    monaco.editor.setModelMarkers(model, 'lexide', monacoMarkers);
+  }, [markers]);
 
   return (
     <Editor
       height={height}
-      language={monacoLang}
+      language="plaintext"
       value={value}
       onChange={onChange}
-      theme="lexide-dark"
+      theme="lexide-theme"
       beforeMount={(monaco) => {
-        monaco.editor.defineTheme('lexide-dark', DARK_THEME);
+        monacoRef.current = monaco;
+        monaco.editor.defineTheme('lexide-theme', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [
+            { token: 'comment', foreground: theme.textMuted.replace('#', '') },
+          ],
+          colors: {
+            'editor.background':               theme.bgCard,
+            'editor.foreground':               theme.textPrimary,
+            'editor.lineHighlightBackground':  theme.bgSecondary,
+            'editorLineNumber.foreground':     theme.textMuted.replace('#', ''),
+            'editorLineNumber.activeForeground': theme.textSecondary.replace('#', ''),
+            'editor.selectionBackground':      `${theme.accentA}33`,
+            'editorCursor.foreground':         theme.accentA,
+            'editor.inactiveSelectionBackground': theme.bgSecondary,
+            'editorWidget.background':         theme.bgCard,
+            'input.background':                theme.bgSecondary,
+            // Subrayado de error rojo
+            'editorError.foreground':   '#f87171',
+            'editorError.border':       '#f87171',
+            'editorWarning.foreground': '#fbbf24',
+            'editorWarning.border':     '#fbbf24',
+          },
+        });
+      }}
+      onMount={(editor, monaco) => {
+        editorRef.current  = editor;
+        monacoRef.current  = monaco;
       }}
       options={{
-        fontSize: 14,
-        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-        fontLigatures: true,
-        lineNumbers: 'on',
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        wordWrap: 'on',
-        tabSize: 2,
-        renderLineHighlight: 'line',
-        smoothScrolling: true,
+        fontSize:              14,
+        fontFamily:            theme.fontFamily,
+        fontLigatures:         true,
+        lineNumbers:           'on',
+        minimap:               { enabled: false },
+        scrollBeyondLastLine:  false,
+        wordWrap:              'on',
+        tabSize:               2,
+        renderLineHighlight:   'line',
+        smoothScrolling:       true,
         cursorSmoothCaretAnimation: 'on',
-        padding: { top: 16, bottom: 16 },
+        padding:               { top: 12, bottom: 12 },
+        cursorBlinking: isTerminal ? 'blink' : 'smooth',
+        cursorStyle:    isTerminal ? 'block' : 'line',
       }}
     />
   );

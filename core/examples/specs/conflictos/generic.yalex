@@ -1,0 +1,38 @@
+(* YALex generico para ejemplos de conflictos SR y RR *)
+{
+  let letter = [a-zA-Z_]
+  let digit  = [0-9]
+  let alnum  = [a-zA-Z0-9_]
+  let ws     = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "if"        { IF }
+  | "else"      { ELSE }
+  | "then"      { THEN }
+  | "while"     { WHILE }
+  | "do"        { DO }
+  | "int"       { INT }
+  | "float"     { FLOAT }
+  | {letter}{alnum}* { ID }
+  | {digit}+'.'{digit}+ { FLOAT_LIT }
+  | {digit}+    { NUM }
+  | "=="        { EQ }
+  | "!="        { NEQ }
+  | "<="        { LEQ }
+  | ">="        { GEQ }
+  | "="         { ASSIGN }
+  | "<"         { LT }
+  | ">"         { GT }
+  | "+"         { PLUS }
+  | "-"         { MINUS }
+  | "*"         { TIMES }
+  | "/"         { DIV }
+  | "%"         { MOD }
+  | "("         { LPAREN }
+  | ")"         { RPAREN }
+  | "{"         { LBRACE }
+  | "}"         { RBRACE }
+  | ";"         { SEMICOLON }
+  | ","         { COMMA }
+  | {ws}+       { WHITESPACE }

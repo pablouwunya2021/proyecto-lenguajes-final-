@@ -63,6 +63,7 @@ public:
 
     // Serialización para D3.js en el frontend
     std::string toJSON() const;
+    std::string toDOT(const std::string& title = "LR(0)") const;
     void        print()  const;
 
 private:

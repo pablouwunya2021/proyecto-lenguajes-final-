@@ -11,7 +11,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import yalex, yapar
+from routers import yalex, yapar, natural, graphviz
 
 app = FastAPI(
     title="Generador de Analizadores Sintácticos",
@@ -28,7 +28,9 @@ app.add_middleware(
 )
 
 app.include_router(yalex.router, prefix="/yalex", tags=["YALex"])
-app.include_router(yapar.router, prefix="/yapar", tags=["YAPar"])
+app.include_router(yapar.router,    prefix="/yapar",    tags=["YAPar"])
+app.include_router(natural.router,  prefix="/natural",  tags=["Natural"])
+app.include_router(graphviz.router, prefix="/graphviz", tags=["Graphviz"])
 
 @app.get("/")
 def root():

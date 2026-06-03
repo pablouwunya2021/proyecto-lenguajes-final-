@@ -47,6 +47,8 @@ struct Conflict {
     Action      existing;
     Action      incoming;
     std::string description;
+    bool        resolvedByPrec = false; // true si se resolvió con %left/%right
+    std::string resolution;             // descripción de cómo se resolvió
 };
 
 // ── Tabla SLR(1) ─────────────────────────────────────────────
@@ -59,7 +61,8 @@ public:
     Action getAction(int state, const std::string& terminal) const;
     int    getGoto(int state, const std::string& nonTerminal) const;
 
-    const std::vector<Conflict>& getConflicts() const { return conflicts_; }
+    const std::vector<Conflict>& getConflicts()         const { return conflicts_; }
+    const std::vector<Conflict>& getResolvedConflicts() const { return resolvedConflicts_; }
     bool hasConflicts() const { return !conflicts_.empty(); }
 
     // Serialización
@@ -74,6 +77,7 @@ private:
     std::map<int, std::map<std::string, int>> goto_;
 
     std::vector<Conflict> conflicts_;
+    std::vector<Conflict> resolvedConflicts_;
     const LR0Automaton*   automaton_ = nullptr;
 
     void setAction(int state, const std::string& sym, const Action& a);

@@ -1,8 +1,25 @@
 #include "yapar/slr1_table.hpp"
+#include "yapar/grammar.hpp"
 #include <iostream>
 #include <sstream>
 
 namespace yapar {
+
+// Escapa una cadena para emitirla de forma segura dentro de un JSON.
+static std::string jsonEscape(const std::string& s) {
+    std::string r;
+    for (char c : s) {
+        switch (c) {
+            case '"':  r += "\\\""; break;
+            case '\\': r += "\\\\"; break;
+            case '\n': r += "\\n";  break;
+            case '\r': r += "\\r";  break;
+            case '\t': r += "\\t";  break;
+            default:   r += c;
+        }
+    }
+    return r;
+}
 
 std::string Action::toString() const {
     switch (type) {
@@ -16,22 +33,87 @@ std::string Action::toString() const {
 
 void SLR1Table::setAction(int state, const std::string& sym, const Action& a) {
     auto it = action_[state].find(sym);
-    if (it != action_[state].end() && !(it->second.type == a.type && it->second.value == a.value)) {
-        // Conflicto detectado
-        Conflict c;
-        c.state       = state;
-        c.symbol      = sym;
-        c.existing    = it->second;
-        c.incoming    = a;
-        c.description = "Conflicto en estado " + std::to_string(state) +
-                        " con '" + sym + "': " +
-                        it->second.toString() + " vs " + a.toString();
-        conflicts_.push_back(c);
-        // Por defecto preferimos shift sobre reduce
-        if (a.type == ActionType::SHIFT) action_[state][sym] = a;
-    } else {
-        action_[state][sym] = a;
+    if (it == action_[state].end()) { action_[state][sym] = a; return; }
+    if (it->second.type == a.type && it->second.value == a.value) return;
+
+    const Action& existing = it->second;
+    const Action& incoming = a;
+
+    // ── Intentar resolver con precedencia ────────────────────
+    bool isShiftReduce =
+        (existing.type == ActionType::SHIFT  && incoming.type == ActionType::REDUCE) ||
+        (existing.type == ActionType::REDUCE && incoming.type == ActionType::SHIFT);
+
+    if (isShiftReduce && automaton_) {
+        const Grammar& g = automaton_->getGrammar();
+        const Action& shiftAct  = (existing.type == ActionType::SHIFT) ? existing : incoming;
+        const Action& reduceAct = (existing.type == ActionType::REDUCE) ? existing : incoming;
+
+        const PrecInfo* symPrec  = g.getPrecedence(sym);
+        const PrecInfo* prodPrec = g.getProductionPrec(reduceAct.value);
+
+        if (symPrec && prodPrec) {
+            Conflict c;
+            c.state = state; c.symbol = sym;
+            c.existing = existing; c.incoming = incoming;
+            c.resolvedByPrec = true;
+
+            if (symPrec->level > prodPrec->level) {
+                // El operador tiene más precedencia → shift
+                action_[state][sym] = shiftAct;
+                c.description = "Shift/Reduce resuelto por precedencia en estado " +
+                                std::to_string(state) + " '" + sym +
+                                "': shift gana (nivel " + std::to_string(symPrec->level) +
+                                " > " + std::to_string(prodPrec->level) + ")";
+                c.resolution = "shift";
+            } else if (symPrec->level < prodPrec->level) {
+                // La producción tiene más precedencia → reduce
+                action_[state][sym] = reduceAct;
+                c.description = "Shift/Reduce resuelto por precedencia en estado " +
+                                std::to_string(state) + " '" + sym +
+                                "': reduce gana (nivel " + std::to_string(prodPrec->level) +
+                                " > " + std::to_string(symPrec->level) + ")";
+                c.resolution = "reduce";
+            } else {
+                // Mismo nivel → usar asociatividad
+                if (symPrec->assoc == Associativity::LEFT) {
+                    action_[state][sym] = reduceAct;
+                    c.description = "Shift/Reduce resuelto en estado " + std::to_string(state) +
+                                    " '" + sym + "': reduce (asociatividad left, nivel " +
+                                    std::to_string(symPrec->level) + ")";
+                    c.resolution = "reduce (left-assoc)";
+                } else if (symPrec->assoc == Associativity::RIGHT) {
+                    action_[state][sym] = shiftAct;
+                    c.description = "Shift/Reduce resuelto en estado " + std::to_string(state) +
+                                    " '" + sym + "': shift (asociatividad right, nivel " +
+                                    std::to_string(symPrec->level) + ")";
+                    c.resolution = "shift (right-assoc)";
+                } else {
+                    // NONASSOC → error sintáctico al encontrar ese token
+                    action_[state][sym] = Action::error();
+                    c.description = "Shift/Reduce en estado " + std::to_string(state) +
+                                    " '" + sym + "': error (nonassoc — no se permite encadenamiento)";
+                    c.resolution = "error (nonassoc)";
+                }
+            }
+            resolvedConflicts_.push_back(c);
+            std::cerr << "[SLR prec] " << c.description << "\n";
+            return;
+        }
     }
+
+    // ── No se pudo resolver con precedencia → conflicto real ─
+    Conflict c;
+    c.state       = state;
+    c.symbol      = sym;
+    c.existing    = existing;
+    c.incoming    = incoming;
+    c.resolvedByPrec = false;
+    c.description = "Conflicto en estado " + std::to_string(state) +
+                    " con '" + sym + "': " +
+                    existing.toString() + " vs " + incoming.toString();
+    conflicts_.push_back(c);
+    if (a.type == ActionType::SHIFT) action_[state][sym] = a;
 }
 
 void SLR1Table::build(const LR0Automaton& automaton) {
@@ -112,8 +194,8 @@ std::string SLR1Table::toJSON() const {
     for (const auto& [state, row] : action_) {
         for (const auto& [sym, act] : row) {
             if (!first) j << ",\n"; first = false;
-            j << "    {\"state\":" << state << ",\"symbol\":\"" << sym
-              << "\",\"action\":\"" << act.toString() << "\"}";
+            j << "    {\"state\":" << state << ",\"symbol\":\"" << jsonEscape(sym)
+              << "\",\"action\":\"" << jsonEscape(act.toString()) << "\"}";
         }
     }
     j << "\n  ],\n  \"goto\": [\n";
@@ -121,7 +203,7 @@ std::string SLR1Table::toJSON() const {
     for (const auto& [state, row] : goto_) {
         for (const auto& [sym, dest] : row) {
             if (!first) j << ",\n"; first = false;
-            j << "    {\"state\":" << state << ",\"symbol\":\"" << sym
+            j << "    {\"state\":" << state << ",\"symbol\":\"" << jsonEscape(sym)
               << "\",\"goto\":" << dest << "}";
         }
     }
@@ -129,10 +211,22 @@ std::string SLR1Table::toJSON() const {
     for (size_t i = 0; i < conflicts_.size(); i++) {
         if (i) j << ",";
         j << "\n    {\"state\":" << conflicts_[i].state
-          << ",\"symbol\":\"" << conflicts_[i].symbol
-          << "\",\"description\":\"" << conflicts_[i].description << "\"}";
+          << ",\"symbol\":\"" << jsonEscape(conflicts_[i].symbol)
+          << "\",\"description\":\"" << jsonEscape(conflicts_[i].description) << "\"}";
     }
     if (!conflicts_.empty()) j << "\n  ]";
+
+    // Conflictos resueltos por precedencia
+    j << ",\n  \"resolvedConflicts\": " << (resolvedConflicts_.empty() ? "[]" : "[");
+    for (size_t i = 0; i < resolvedConflicts_.size(); i++) {
+        if (i) j << ",";
+        j << "\n    {\"state\":" << resolvedConflicts_[i].state
+          << ",\"symbol\":\"" << jsonEscape(resolvedConflicts_[i].symbol)
+          << "\",\"description\":\"" << jsonEscape(resolvedConflicts_[i].description)
+          << "\",\"resolution\":\"" << jsonEscape(resolvedConflicts_[i].resolution) << "\"}";
+    }
+    if (!resolvedConflicts_.empty()) j << "\n  ]";
+
     j << "\n}";
     return j.str();
 }

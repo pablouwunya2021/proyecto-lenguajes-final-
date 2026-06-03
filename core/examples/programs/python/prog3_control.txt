@@ -1,0 +1,33 @@
+def fibonacci(n):
+    if n <= 1:
+        return n
+    end
+    return fibonacci(n - 1) + fibonacci(n - 2)
+end
+
+def factorial(n):
+    if n <= 1:
+        return 1
+    end
+    return n * factorial(n - 1)
+end
+
+def es_par(n):
+    if n % 2 == 0:
+        return True
+    else:
+        return False
+    end
+end
+
+x = 0
+while x < 10:
+    x = x + 1
+end
+
+for i in lista:
+    resultado = resultado + i
+end
+
+n = fibonacci(8)
+f = factorial(5)

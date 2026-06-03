@@ -1,0 +1,13 @@
+public class Variables {
+    public static void main() {
+        int x = 5 ;
+        int y = 10 ;
+        int z = x + y ;
+        float pi = 3 ;
+        int radio = 4 ;
+        boolean activo = true ;
+        int resultado = z * 2 + 1 ;
+        int max = 100 ;
+        int contador = 0 ;
+    }
+}

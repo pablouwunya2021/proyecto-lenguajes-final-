@@ -1,0 +1,53 @@
+(* Especificacion YALex para C++ *)
+{
+  let letter  = [a-zA-Z_]
+  let digit   = [0-9]
+  let alnum   = [a-zA-Z0-9_]
+  let ws      = [' ' '\t' '\n' '\r']
+}
+
+rule tokens =
+    "int"              { INT_TYPE }
+  | "float"            { FLOAT_TYPE }
+  | "double"           { DOUBLE_TYPE }
+  | "char"             { CHAR_TYPE }
+  | "bool"             { BOOL_TYPE }
+  | "void"             { VOID_TYPE }
+  | "if"               { IF }
+  | "else"             { ELSE }
+  | "while"            { WHILE }
+  | "for"              { FOR }
+  | "return"           { RETURN }
+  | "true"             { TRUE }
+  | "false"            { FALSE }
+  | {letter}{alnum}*   { ID }
+  | {digit}+           { INT_LIT }
+  | {digit}+'.'{digit}+ { FLOAT_LIT }
+  | "=="               { EQ }
+  | "!="               { NEQ }
+  | "<="               { LEQ }
+  | ">="               { GEQ }
+  | "&&"               { AND }
+  | "||"               { OR }
+  | "+="               { PLUS_ASSIGN }
+  | "-="               { MINUS_ASSIGN }
+  | "++"               { INCREMENT }
+  | "--"               { DECREMENT }
+  | "!"                { NOT }
+  | "="                { ASSIGN }
+  | "+"                { PLUS }
+  | "-"                { MINUS }
+  | "*"                { TIMES }
+  | "/"                { DIV }
+  | "%"                { MOD }
+  | "<"                { LT }
+  | ">"                { GT }
+  | "("                { LPAREN }
+  | ")"                { RPAREN }
+  | "{"                { LBRACE }
+  | "}"                { RBRACE }
+  | "["                { LBRACKET }
+  | "]"                { RBRACKET }
+  | ";"                { SEMICOLON }
+  | ","                { COMMA }
+  | {ws}+              { WHITESPACE }

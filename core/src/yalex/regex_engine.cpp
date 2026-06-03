@@ -25,7 +25,21 @@ std::string RegexParser::expandMacros(const std::string& regex) {
         std::string temp;
         size_t i = 0;
         while (i < result.size()) {
-            if (result[i] == '{') {
+            // Saltar strings "..." — el { dentro de "{"  no es macro
+            if (result[i] == '"') {
+                temp += result[i++];
+                while (i < result.size() && result[i] != '"')
+                    temp += result[i++];
+                if (i < result.size()) temp += result[i++]; // cierra "
+            // Saltar chars 'x' y '\t' — el { dentro no es macro
+            } else if (result[i] == '\'') {
+                temp += result[i++];
+                while (i < result.size() && result[i] != '\'') {
+                    if (result[i] == '\\' && i+1 < result.size()) temp += result[i++];
+                    temp += result[i++];
+                }
+                if (i < result.size()) temp += result[i++]; // cierra '
+            } else if (result[i] == '{') {
                 size_t end = result.find('}', i);
                 if (end == std::string::npos) throw std::invalid_argument("Macro sin cerrar '}'");
                 std::string name = result.substr(i+1, end-i-1);
@@ -33,20 +47,44 @@ std::string RegexParser::expandMacros(const std::string& regex) {
                 if (it == macros_.end()) throw std::invalid_argument("Macro no definida: " + name);
                 temp += "(" + it->second + ")";
                 i = end + 1; changed = true;
-            } else { temp += result[i++]; }
+            } else {
+                temp += result[i++];
+            }
         }
         result = temp;
     }
-    // Expandir clases [...]
+    // Expandir clases [...] — saltando contenido dentro de "..." y '...'
     std::string final_result;
     size_t i = 0;
     while (i < result.size()) {
-        if (result[i] == '[') {
-            size_t end = result.find(']', i);
+        if (result[i] == '"') {
+            // String literal "..." → copiar tal cual como literales individuales
+            // (el tokenizer los procesa luego char a char)
+            final_result += result[i++]; // "
+            while (i < result.size() && result[i] != '"') {
+                final_result += result[i++];
+            }
+            if (i < result.size()) final_result += result[i++]; // "
+        } else if (result[i] == '\'' && i+2 < result.size() && result[i+2] == '\'') {
+            // Char literal 'x' de 3 chars → copiar tal cual
+            final_result += result[i++]; // '
+            final_result += result[i++]; // x
+            final_result += result[i++]; // '
+        } else if (result[i] == '\'' && i+3 < result.size() &&
+                   result[i+1] == '\\' && result[i+3] == '\'') {
+            // Char escape '\t' '\n' '\r' de 4 chars → copiar tal cual
+            final_result += result[i++]; // '
+            final_result += result[i++]; // '\'
+            final_result += result[i++]; // t/n/r
+            final_result += result[i++]; // '
+        } else if (result[i] == '[') {
+            size_t end = result.find(']', i + 1);
             if (end == std::string::npos) throw std::invalid_argument("Clase sin cerrar ']'");
             final_result += expandCharClass(result.substr(i+1, end-i-1));
             i = end + 1;
-        } else { final_result += result[i++]; }
+        } else {
+            final_result += result[i++];
+        }
     }
     return final_result;
 }

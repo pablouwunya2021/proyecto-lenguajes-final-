@@ -1,0 +1,754 @@
+(* ============================================================
+   qeqchi.yalex — Especificación léxica del idioma Q'eqchi'
+
+   Correcciones aplicadas:
+   - Bug 1: "eb'" duplicado → se usa solo para PLURAL_MARK;
+            PRON_3PL usa "eb' li" (sintagma), aquí se captura
+            como PLURAL_MARK y el parser lo trata como pronombre.
+   - Bug 2: {word}+ → {word}  (word ya es letter+, no necesita +)
+   - Bug 3: mayúscula al inicio de oración → se añaden variantes
+            Wan/Wank/Laa'in/Ink'a'/Maak'a'/Naab'al/Jun/Juneq
+   - Orden: las keywords específicas van ANTES que {word} para
+            que el DFA haga longest-match correcto.
+============================================================ *)
+
+{
+  let letter = [a-zA-Z']
+  let digit  = [0-9]
+  let ws     = [' ' '\t' '\n' '\r']
+  let word   = {letter}+
+}
+
+rule tokens =
+
+  (* ── Espacios: se IGNORAN — no se pasan al parser ────────────
+     En Q'eqchi' (y en cualquier gramática), el parser no debe
+     recibir tokens de espacio. El lexer los consume y continúa
+     sin emitir token. Si tu motor yalex requiere retornar algo,
+     cambia esto a { WHITESPACE } y agrega whitespace_opt a todas
+     las reglas del yapar — pero lo correcto es skipear aquí.  *)
+  {ws}+       { SKIP }
+
+  (* ── Partículas funcionales — minúscula y mayúscula ──────────
+     IMPORTANTE: van antes de {word} para que el DFA
+     aplique longest-match y reconozca keywords primero.     *)
+  | "li"          { ART }
+  | "Li"          { ART }
+
+  (* eb' = PLURAL_MARK (y también PRON_3PL en contexto —
+     el parser distingue por posición en la oración)         *)
+  | "eb'"         { PLURAL_MARK }
+  | "Eb'"         { PLURAL_MARK }
+
+  | "sa'"         { LOC_IN }
+  | "Sa'"         { LOC_IN }
+  | "chi"         { LOC_WITH }
+  | "Chi"         { LOC_WITH }
+  | "re"          { PREP_FOR }
+  | "Re"          { PREP_FOR }
+  | "ut"          { CONJ_AND }
+  | "Ut"          { CONJ_AND }
+  | "naq"         { COMP_THAT }
+  | "Naq"         { COMP_THAT }
+  | "jo'"         { ADV_LIKE }
+  | "Jo'"         { ADV_LIKE }
+  | "rik'in"      { PREP_WITH_INST }
+  | "Rik'in"      { PREP_WITH_INST }
+  | "ruk'"        { PREP_WITH_INST }
+  | "Ruk'"        { PREP_WITH_INST }
+  | "chijunileb'" { ADV_EVERYONE }
+  | "Chijunileb'" { ADV_EVERYONE }
+  | "chijunilex"  { ADV_EVERYONE }
+  | "Chijunilex"  { ADV_EVERYONE }
+  | "junjunqeb"   { ADV_EACH }
+  | "Junjunqeb"   { ADV_EACH }
+  | "junelik"     { ADV_ALWAYS }
+  | "Junelik"     { ADV_ALWAYS }
+  | "mayer"       { ADV_BEFORE }
+  | "Mayer"       { ADV_BEFORE }
+  | "wulaj"       { ADV_TOMORROW }
+  | "Wulaj"       { ADV_TOMORROW }
+  | "xkaanb'al"   { NOUN_NOON }
+  | "Xkaanb'al"   { NOUN_NOON }
+
+  (* ── Existencial — variantes con/sin mayúscula ─────────────── *)
+  | "wankat"      { VERB_EXIST }
+  | "Wankat"      { VERB_EXIST }
+  | "wank"        { VERB_EXIST }
+  | "Wank"        { VERB_EXIST }
+  | "wan"         { VERB_EXIST }
+  | "Wan"         { VERB_EXIST }
+
+  (* ── Existencial progresivo (yoo + sufijo de persona) ───────
+     yoo = forma progresiva de wan; el sufijo indica persona.
+     Se mapean al mismo token para reutilizar reglas del parser. *)
+  | "yookin"      { VERB_EXIST }
+  | "Yookin"      { VERB_EXIST }
+  | "yookat"      { VERB_EXIST }
+  | "Yookat"      { VERB_EXIST }
+  | "yookeb"      { VERB_EXIST }
+  | "Yookeb"      { VERB_EXIST }
+  | "yookeb'"     { VERB_EXIST }
+  | "yoo"         { VERB_EXIST }
+  | "Yoo"         { VERB_EXIST }
+  | "wankin"      { VERB_EXIST }
+  | "Wankin"      { VERB_EXIST }
+
+  (* ── Pronombres ─────────────────────────────────────────────── *)
+  | "laa'in"      { PRON_1S }
+  | "Laa'in"      { PRON_1S }
+  | "laa'at"      { PRON_2S }
+  | "Laa'at"      { PRON_2S }
+  | "laa'e"       { PRON_3S }
+  | "Laa'e"       { PRON_3S }
+  | "laa'o"       { PRON_1PL }
+  | "Laa'o"       { PRON_1PL }
+  | "laa'ex"      { PRON_2PL }
+  | "Laa'ex"      { PRON_2PL }
+
+  (* ── Aspecto verbal ─────────────────────────────────────────── *)
+  | "x"           { COMP_ASPECT }
+
+  (* ── Negación ─────────────────────────────────────────────── *)
+  | "ink'a'"      { NEG }
+  | "Ink'a'"      { NEG }
+  | "maak'a'"     { NEG }
+  | "Maak'a'"     { NEG }
+  | "mak'a"       { NEG }
+  | "Mak'a"       { NEG }
+  | "ninko"       { NEG }
+  | "Ninko"       { NEG }
+
+  (* ── Interrogativos ─────────────────────────────────────────── *)
+  | "K'a'ru"      { INTERROG_WHAT }
+  | "k'a'ru"      { INTERROG_WHAT }
+  | "K'aru"       { INTERROG_WHAT }
+  | "k'aru"       { INTERROG_WHAT }
+  | "Chanru"      { INTERROG_HOW }
+  | "chanru"      { INTERROG_HOW }
+  | "K'a'ut"      { INTERROG_WHY }
+  | "k'a'ut"      { INTERROG_WHY }
+  | "K'aut"       { INTERROG_WHY }
+  | "Aniat"       { INTERROG_WHO }
+  | "aniat"       { INTERROG_WHO }
+  | "Ma"          { INTERROG_PART }
+  | "ma"          { INTERROG_PART }
+
+  (* ── Marcador de género ─────────────────────────────────────── *)
+  | "aj"          { MASC_MARK }
+  | "Aj"          { MASC_MARK }
+
+  (* ── Verbos ─────────────────────────────────────────────────── *)
+  | "k'anjelak"   { VERB_WORK }
+  | "k'anjel"     { VERB_WORK }
+  | "b'anow"      { VERB_DO }
+  | "b'ank"       { VERB_DO }
+  | "xike"        { VERB_GO }
+  | "xik"         { VERB_GO }
+  | "k'ulak"      { VERB_ARRIVE }
+  | "k'ul"        { VERB_ARRIVE }
+  | "k'ira"       { VERB_CURE }
+  | "iloq"        { VERB_SEE }
+  | "il"          { VERB_SEE }
+  | "yejak"       { VERB_TEACH }
+  | "tawb'"       { VERB_FIND }
+  | "taw"         { VERB_FIND }
+  | "loq'"        { VERB_BUY }
+  | "k'ay"        { VERB_SELL }
+  | "k'e"         { VERB_GIVE }
+  | "ab'i"           { VERB_HEAR }
+  | "ab'ink"         { VERB_HEAR }
+  | "tz'iib'"        { VERB_WRITE }
+  | "naw"            { VERB_KNOW }
+  | "aatinank"       { VERB_SPEAK }
+  | "aatinak"        { VERB_SPEAK }
+  | "aatink"         { VERB_SPEAK }
+  | "ajok"           { VERB_WANT }
+  | "awk"            { VERB_PLANT }
+  | "awok"           { VERB_PLANT }
+  | "awink"          { VERB_PLANT }
+  | "atisink"        { VERB_BATHE }
+  | "atisiik"        { VERB_BATHE }
+  | "b'atok"         { VERB_WRAP }
+  | "b'atz'unk"      { VERB_PLAY }
+  | "b'olotzib'k"    { VERB_PLAY }
+  | "b'asok"         { VERB_FOLD }
+  | "b'asinink"      { VERB_FOLD }
+  | "b'ekok"         { VERB_DIG }
+  | "b'eklink"       { VERB_DIG }
+  | "b'ekink"        { VERB_DIG }
+  | "b'enik"         { VERB_TRAVEL }
+  | "b'eenink"       { VERB_TRAVEL }
+  | "b'anyoxink"     { VERB_THANK }
+  | "anumtesink"     { VERB_SCARE }
+  | "b'alok"         { VERB_HIDE }
+  | "b'alq'usink"    { VERB_TURN }
+  | "b'alq'unk"      { VERB_TURN }
+  | "b'ayok"         { VERB_DELAY }
+  | "b'ayk"          { VERB_DELAY }
+  | "kamsink"        { VERB_KILL }
+  | "kamsinb'il"     { VERB_KILL }
+  | "loq'onk"        { VERB_BUY }
+  | "k'ayink"        { VERB_SELL }
+  | "b'ichank"       { VERB_SING }
+  | "b'ichaak"       { VERB_SING }
+  | "b'ichlenk"      { VERB_SING }
+  | "b'onok"         { VERB_PAINT }
+  | "b'onolenk"      { VERB_PAINT }
+  | "b'ojok"         { VERB_SEW }
+  | "b'oje'k"        { VERB_SEW }
+  | "b'oqok"         { VERB_INVITE }
+  | "b'oqlenk"       { VERB_INVITE }
+  | "b'isok"         { VERB_MEASURE }
+  | "b'isonk"        { VERB_MEASURE }
+  | "b'itonk"        { VERB_CARRY }
+  | "b'itok"         { VERB_CARRY }
+  | "b'eek"          { VERB_WALK }
+  | "b'eejesink"     { VERB_WALK }
+  | "b'eeresink"     { VERB_GUIDE }
+  | "b'eeresinb'il"  { VERB_GUIDE }
+  | "ajlank"         { VERB_COUNT }
+  | "ajlaak"         { VERB_COUNT }
+  | "b'ak'ok"        { VERB_TIE }
+  | "b'ak'b'ak'ink"  { VERB_TIE }
+  | "b'aqirk"        { VERB_SLIM }
+  | "b'aqob'resink"  { VERB_SLIM }
+  | "b'orok"         { VERB_UNDO }
+  | "b'ornank"       { VERB_UNDO }
+  | "b'alaq'ik"      { VERB_DECEIVE }
+  | "b'alaq'ink"     { VERB_DECEIVE }
+  | "b'ihomob'resink"{ VERB_ENRICH }
+  | "b'ihomo'k"      { VERB_ENRICH }
+  | "aanilank"       { VERB_RUN }
+  | "aanilaak"       { VERB_RUN }
+  | "aanilak"        { VERB_RUN }
+  | "jalolok"        { VERB_TRANSLATE }
+  | "yalok"          { VERB_SAY }
+  | "yalnink"        { VERB_SAY }
+  | "ch'utunink"     { VERB_ARRIVE }
+  | "kamok"          { VERB_DIE }
+  | "kamaak"         { VERB_DIE }
+  | "alomok"         { VERB_BORN }
+  | "alomaak"        { VERB_BORN }
+  | "waqxaqok"       { VERB_RAISE }
+  | "k'exok"         { VERB_CHANGE }
+  | "k'exaak"        { VERB_CHANGE }
+  | "xb'aanunk"      { VERB_DO }
+  | "xb'aanuuk"      { VERB_DO }
+  | "tz'aqolok"      { VERB_COMPLETE }
+  | "tz'aqolaak"     { VERB_COMPLETE }
+  | "sik'ok"         { VERB_CALL }
+  | "sik'b'il"       { VERB_CALL }
+  | "loq'ok"         { VERB_LOVE }
+  | "loq'b'il"       { VERB_LOVE }
+  | "k'amok"         { VERB_RECEIVE }
+  | "k'amb'il"       { VERB_RECEIVE }
+  | "xik"            { VERB_GO }
+  | "ko"             { VERB_GO }
+  | "xko"            { VERB_GO }
+  | "poyanamok"      { VERB_GATHER }
+
+  (* ── Verbos fundamentales de los ejemplos reales ────────────── *)
+  | "wa'ak"          { VERB_EAT }
+  | "wa'ank"         { VERB_EAT }
+  | "wa'aak"         { VERB_EAT }
+  | "chaakuy"        { VERB_FORGIVE }
+  | "chaakuyi"       { VERB_FORGIVE }
+  | "chaak'uy"       { VERB_FORGIVE }
+  | "sak'ok"         { VERB_HIT }
+  | "sak'"           { VERB_HIT }
+  | "chunlok"        { VERB_SIT }
+  | "chunchu"        { VERB_SIT }
+  | "ninchunla"      { VERB_SIT }
+  | "chunla"         { VERB_SIT }
+  | "jork"           { VERB_CUT }
+  | "jorink"         { VERB_CUT }
+  | "t'anek"         { VERB_FALL }
+  | "t'ane'"         { VERB_FALL }
+  | "musiq'ak"       { VERB_BREATHE }
+  | "musiq'ank"      { VERB_BREATHE }
+  | "puch'ok"        { VERB_WASH }
+  | "puch'"          { VERB_WASH }
+  | "tz'apok"        { VERB_CLOSE }
+  | "tz'ap"          { VERB_CLOSE }
+  | "oso'ok"         { VERB_FINISH }
+  | "oso'"           { VERB_FINISH }
+  | "pisk'ok"        { VERB_JUMP }
+  | "pisk'ank"       { VERB_JUMP }
+  | "taqok"          { VERB_SEND }
+  | "taqataqla"      { VERB_SEND }
+  | "cholok"         { VERB_EXPLAIN }
+  | "cholb'ank"      { VERB_EXPLAIN }
+  | "wuulank"        { VERB_VISIT }
+  | "wuulani"        { VERB_VISIT }
+  | "naak'utunk"     { VERB_APPEAR }
+  | "naak'utun"      { VERB_APPEAR }
+  | "rilok"          { VERB_SEE }
+  | "xril"           { VERB_SEE }
+  | "naril"          { VERB_SEE }
+  | "pab'ok"         { VERB_BELIEVE }
+  | "pab'"           { VERB_BELIEVE }
+  | "k'ehok"         { VERB_RESPECT }
+  | "k'eho"          { VERB_RESPECT }
+  | "tanok"          { VERB_CRASH }
+  | "kitane'"        { VERB_CRASH }
+  | "ra'ok"          { VERB_HURT }
+  | "ra"             { VERB_HURT }
+  | "numenik"        { VERB_PASS }
+  | "numen"          { VERB_PASS }
+  | "loq'ok"         { VERB_LOVE }
+  | "k'amok"         { VERB_RECEIVE }
+  | "tawok"          { VERB_FIND_MEET }
+  | "xintaw"         { VERB_FIND_MEET }
+  | "sikb'ank"       { VERB_SEARCH }
+  | "xsikb'al"       { VERB_SEARCH }
+  | "aatenqank"      { VERB_ATTEND }
+  | "weeka"          { VERB_FEEL }
+  | "nakaweeka"      { VERB_FEEL }
+  | "weekaak"        { VERB_FEEL }
+  | "b'antioxink"    { VERB_THANK }
+  | "taqab'antioxi"  { VERB_THANK }
+
+  (* ── Sustantivos ────────────────────────────────────────────── *)
+  | "aatinob'aal" { NOUN_LANGUAGE }
+  | "aatinaal"    { NOUN_LANGUAGE }
+  | "aatin"       { NOUN_WORD }
+  | "tenamit"     { NOUN_TOWN }
+  | "k'aleb'aal"  { NOUN_COMMUNITY }
+  | "kab'l"       { NOUN_HOUSE }
+  | "nima'"       { NOUN_RIVER }
+  | "ch'och'"     { NOUN_LAND }
+  | "tz'oleb'aal" { NOUN_SCHOOL }
+  | "k'utunel"    { NOUN_TEACHER }
+  | "poyanam"     { NOUN_PEOPLE }
+  | "winq"        { NOUN_PERSON }
+  | "ixq"         { NOUN_WOMAN }
+  | "ch'ina'al"   { NOUN_CHILD }
+  (* k'anjel = trabajo (mismo token que verbo — el parser distingue por contexto) *)
+  | "tumin"       { NOUN_MONEY }
+  | "wakax"       { NOUN_COW }
+  | "tz'i'"       { NOUN_DOG }
+  | "ixim"        { NOUN_CORN }
+  | "ha'"         { NOUN_WATER }
+  | "kutan"       { NOUN_DAY }
+  | "saqenk"      { NOUN_MORNING }
+  | "ab'"         { NOUN_HAMMOCK }
+  | "tib'"        { NOUN_MEAT }
+  | "am"          { NOUN_SPIDER }
+  | "xjolom"      { NOUN_WORD }
+  | "ahin"        { NOUN_LIZARD }
+  | "amoch"       { NOUN_FROG }
+  | "anum"        { NOUN_GHOST }
+  | "aaq"         { NOUN_PIG }
+  | "atz'am"      { NOUN_SALT }
+  | "atz'um"      { NOUN_FLOWER }
+  | "b'e"         { NOUN_ROAD }
+  | "b'aq"        { NOUN_BONE }
+  | "b'alis"      { NOUN_BANANA }
+  | "b'aas"       { NOUN_GLASS }
+  | "b'aar"       { NOUN_STICK }
+  | "b'aatal"     { NOUN_CLOTHES }
+  | "b'atz'"      { NOUN_MONKEY }
+  | "ajaw"        { NOUN_GOD }
+  | "ab'aal"      { NOUN_FRUIT }
+  | "ab'aj"       { NOUN_STONE }
+  | "aam"         { NOUN_SOUL }
+  | "kar"         { NOUN_FISH }
+  | "che'"        { NOUN_TREE }
+  | "b'an"        { NOUN_MEDICINE }
+  | "k'aaq"       { NOUN_FIRE }
+  | "q'eqal"      { NOUN_DARKNESS }
+  | "hab'"        { NOUN_RAIN }
+  | "paab'"       { NOUN_SUN }
+  | "ik'"         { NOUN_MOON }
+  | "chanim"      { NOUN_STAR }
+  | "ch'iich'"    { NOUN_BIRD }
+  | "b'alam"      { NOUN_JAGUAR }
+  | "keh"         { NOUN_DEER }
+  | "chej"        { NOUN_HORSE }
+  | "mes"         { NOUN_CAT }
+  | "jolom"       { NOUN_HEAD }
+  | "q'ab'"       { NOUN_HAND }
+  | "oq"          { NOUN_FOOT }
+  | "xib'aal"     { NOUN_FEAR }
+  | "na'leb'"     { NOUN_MIND }
+  | "ch'ool"      { NOUN_HEART }
+  | "b'aanub'aal"    { NOUN_WORKSHOP }
+  | "k'anjel"        { NOUN_WORK }
+  | "b'ich"          { NOUN_SONG }
+  | "b'on"           { NOUN_PAINT }
+  | "b'oj"           { NOUN_CHICHA }
+  | "b'olotz"        { NOUN_BALL }
+  | "b'eelomej"      { NOUN_HUSBAND }
+  | "b'ihomal"       { NOUN_WEALTH }
+  | "b'ireet"        { NOUN_HAT }
+  | "b'iis"          { NOUN_MEASURE }
+  | "b'isleb'"       { NOUN_SCALE }
+  | "b'anleb'aal"    { NOUN_HOSPITAL }
+  | "b'atz'ub'aal"   { NOUN_FIELD }
+  | "b'atz'um"       { NOUN_TOY }
+  | "b'alaq'"        { NOUN_LIE }
+  | "b'aax"          { NOUN_STONE }
+  | "b'ooyx"         { NOUN_OXEN }
+  | "b'eeleb'aal"    { NOUN_VEHICLE }
+  | "k'ayil"         { NOUN_MARKET }
+  | "pek"            { NOUN_MOUNTAIN }
+  | "k'iche'"        { NOUN_FOREST }
+  | "maak"           { NOUN_SIN }
+  | "kenq'"          { NOUN_BEAN }
+  | "iiq"            { NOUN_STAR }
+  | "tzeekmq"        { NOUN_FOOD }
+  | "wa"             { NOUN_FOOD }
+  | "chaqr'ab'"      { NOUN_LAW }
+  | "chaq'rab'"      { NOUN_LAW }
+  | "poopol"         { NOUN_OFFICE }
+  | "tz'alam"        { NOUN_PRISON }
+  | "jul"            { NOUN_HOLE }
+  | "xam"            { NOUN_CLOUD }
+  | "xaml"           { NOUN_WASP }
+  | "sanik"          { NOUN_ANT }
+  | "kuy"            { NOUN_PIGLET }
+  | "chej"           { NOUN_HORSE }
+  | "hix"            { NOUN_TIGER }
+  | "uch"            { NOUN_OPOSSUM }
+  | "tiul"           { NOUN_OWL }
+  | "xul"            { NOUN_ANIMAL }
+  | "ch'im"          { NOUN_ANIMAL }
+  | "chi"            { NOUN_MOUTH }
+  | "b'e"            { NOUN_ROAD }
+  | "na'"            { NOUN_MOTHER }
+  | "inyuwa'"        { NOUN_FATHER }
+  | "chiin"          { NOUN_ORANGE }
+  | "xaab'"          { NOUN_SHOE }
+  | "ikr"            { NOUN_SHIRT }
+  | "waq'"           { NOUN_SHIRT }
+  | "pim"            { NOUN_MOUNTAIN_JUNGLE }
+  | "k'al"           { NOUN_MILPA }
+  | "ch'een"         { NOUN_WELL }
+  | "taq'a"          { NOUN_ROAD }
+  | "meex"           { NOUN_TABLE }
+  | "situl"          { NOUN_BANANA_PLANT }
+  | "lam"            { NOUN_COMAL }
+  | "kaab'"          { NOUN_HONEY }
+  | "k'ab'"          { NOUN_HAND }
+  | "woq"            { NOUN_FOOT }
+  | "ib'"            { NOUN_SELF }
+  | "wiitz"          { NOUN_HILL }
+  | "siik'"          { NOUN_SMOKE }
+  | "q'an"           { NOUN_YELLOW }
+  | "rox"            { NOUN_THIRD }
+  | "k'uul"          { NOUN_HAMMOCK }
+  | "xna'"           { NOUN_WOMAN_TERM }
+  | "b'irleb'"       { NOUN_CALCULATOR }
+  | "b'ichleb'"      { NOUN_HYMNAL }
+  | "paat"           { NOUN_BACK }
+  | "jolom"          { NOUN_HEAD }
+  | "woch"           { NOUN_HOUSE_INTERIOR }
+  | "rub'el"         { NOUN_UNDER }
+  | "choch"          { NOUN_LAND }
+  | "sulul"          { NOUN_MUD }
+  | "xook"           { NOUN_COUNT }
+  | "komonil"        { NOUN_WORLD }
+  | "rahilal"        { NOUN_SUFFERING }
+  | "usilal"         { NOUN_GOODNESS }
+  | "xb'aalunq"      { NOUN_WORLD }
+
+  (* ── Sustantivos de los ejemplos reales ─────────────────────── *)
+  | "kaxlan"         { NOUN_CHICKEN }
+  | "ochoch"         { NOUN_HOUSE }
+  | "wochoch"        { NOUN_HOUSE }
+  | "si'"            { NOUN_FIREWOOD }
+  | "k'aam"          { NOUN_ROPE }
+  | "k'ab'a'"        { NOUN_NAME }
+  | "tz'ib'leb'"     { NOUN_PENCIL }
+  | "hu"             { NOUN_PAPER }
+  | "ismal"          { NOUN_HAIR }
+  | "wismal"         { NOUN_HAIR }
+  | "k'uula'al"      { NOUN_BABY }
+  | "qulaal"         { NOUN_BABY }
+  | "ch'utam"        { NOUN_MEETING }
+  | "eerilb'al"      { NOUN_MEETING }
+  | "xaman"          { NOUN_WEEKEND }
+  | "seb'uk'al"      { NOUN_POT }
+  | "kok'kab'"       { NOUN_CANDY }
+  | "b'eleb'aalch'iich'" { NOUN_CAR }
+  | "b'aqlaqch'iich'"    { NOUN_MOTORCYCLE }
+  | "sosolch'iich'"      { NOUN_PLANE }
+  | "chunleb'aal"    { NOUN_CHAIR }
+  | "chunleb'meex"   { NOUN_DESK }
+  | "kawa'chin"      { NOUN_MISTER }
+  | "kana'chin"      { NOUN_MISSIS }
+  | "rahom"          { NOUN_LOVE }
+  | "ch'inaxk'aal"   { NOUN_GIRL }
+  | "al"             { NOUN_BOY }
+  | "tib'elwa"       { NOUN_FOOD }
+  | "aq"             { NOUN_CLOTH }
+  | "wamiw"          { NOUN_FRIEND }
+  | "na'aj"          { NOUN_LAND }
+  | "na'b'ej"        { NOUN_MOTHER }
+  | "yuwa'b'ej"      { NOUN_FATHER }
+  | "k'auxl"         { NOUN_HEART }
+  | "punit"          { NOUN_HAT }
+  | "ik"             { NOUN_SOUP }
+  | "naleb'"         { NOUN_BEHAVIOR }
+  | "tib'el"         { NOUN_BODY }
+  | "tz'i'"          { NOUN_DOG }
+  | "q'eqitz'i'"     { NOUN_DOG }
+  | "na'"            { NOUN_MOTHER }
+  | "yuwa'"          { NOUN_FATHER }
+  | "linna'"         { NOUN_MOTHER }
+  | "wajxaq"         { NOUN_NUMBER }
+  | "ajwal"          { NOUN_LORD }
+  | "Qawa'"          { NOUN_LORD }
+  | "qawa'"          { NOUN_LORD }
+
+  (* ── Formas poseídas frecuentes (prefijo + raíz fusionados) ───
+     El Q'eqchi' es aglutinante: el prefijo posesivo se fusiona
+     con el sustantivo. Se listan las formas más comunes de los
+     ejemplos reales para que el DFA las reconozca directamente.
+
+     Prefijos: in-/lin- (mi), laa-/aa- (tu), r-/lix- (su),
+               qa-/qach'- (nuestro)                           *)
+
+  (* nombre *)
+  | "laak'ab'a'"     { NOUN_NAME }
+  | "link'ab'a'"     { NOUN_NAME }
+  | "ink'ab'a'"      { NOUN_NAME }
+  | "rk'ab'a'"       { NOUN_NAME }
+
+  (* corazón / mente *)
+  | "linch'ool"      { NOUN_HEART }
+  | "inch'ool"       { NOUN_HEART }
+  | "lixch'ool"      { NOUN_HEART }
+  | "aach'ool"       { NOUN_HEART }
+  | "qach'ool"       { NOUN_HEART }
+  | "rch'ool"        { NOUN_HEART }
+
+  (* pecado *)
+  | "inmaak"         { NOUN_SIN }
+  | "linmaak"        { NOUN_SIN }
+  | "laamaak"        { NOUN_SIN }
+  | "rmaak"          { NOUN_SIN }
+
+  (* cabeza *)
+  | "injolom"        { NOUN_HEAD }
+  | "linjolom"       { NOUN_HEAD }
+  | "laajolom"       { NOUN_HEAD }
+  | "rjolom"         { NOUN_HEAD }
+
+  (* trabajo *)
+  | "ink'anjel"      { NOUN_WORK }
+  | "link'anjel"     { NOUN_WORK }
+  | "laak'anjel"     { NOUN_WORK }
+
+  (* casa *)
+  | "wochoch"        { NOUN_HOUSE }
+  | "liiochoch"      { NOUN_HOUSE }
+  | "aachoch"        { NOUN_HOUSE }
+
+  (* mamá / papá *)
+  | "linna'"         { NOUN_MOTHER }
+  | "aana'"          { NOUN_MOTHER }
+  | "rna'"           { NOUN_MOTHER }
+  | "linyuwa'"       { NOUN_FATHER }
+  | "aayuwa'"        { NOUN_FATHER }
+
+  (* carro *)
+  | "lixb'eleb'aalch'iich'"  { NOUN_CAR }
+  | "laab'eleb'aalch'iich'"  { NOUN_CAR }
+  | "linb'eleb'aalch'iich'"  { NOUN_CAR }
+
+  (* moto/bicicleta *)
+  | "lixb'aqlaqch'iich'"     { NOUN_MOTORCYCLE }
+  | "laab'aqlaqch'iich'"     { NOUN_MOTORCYCLE }
+  | "linb'aqlaqch'iich'"     { NOUN_MOTORCYCLE }
+
+  (* lapicero *)
+  | "lintz'ib'leb'"  { NOUN_PENCIL }
+  | "laaitz'ib'leb'" { NOUN_PENCIL }
+
+  (* cuaderno/papel *)
+  | "linhu"          { NOUN_PAPER }
+  | "laahu"          { NOUN_PAPER }
+  | "rhu"            { NOUN_PAPER }
+
+  (* perro *)
+  | "lixtz'i'"       { NOUN_DOG }
+  | "lintz'i'"       { NOUN_DOG }
+
+  (* gato *)
+  | "laames"         { NOUN_CAT }
+  | "linmes"         { NOUN_CAT }
+
+  (* gorra / sombrero *)
+  | "lixpunit"       { NOUN_HAT }
+  | "laapunit"       { NOUN_HAT }
+
+  (* cabello *)
+  | "lawismal"       { NOUN_HAIR }
+  | "liwismal"       { NOUN_HAIR }
+  | "linismal"       { NOUN_HAIR }
+
+  (* ── Adjetivos / cuantificadores ────────────────────────────── *)
+  | "naab'al"     { ADJ_MANY }
+  | "Naab'al"     { ADJ_MANY }
+  | "juneq"       { ADJ_ONE }
+  | "Juneq"       { ADJ_ONE }
+  | "jun"         { ADJ_ONE }
+  | "Jun"         { ADJ_ONE }
+  | "nim"         { ADJ_BIG }
+  | "ch'in"       { ADJ_SMALL }
+  | "us"          { ADJ_GOOD }
+  | "chaab'il"    { ADJ_GOOD }
+  | "jwal"        { ADV_VERY }
+  | "aal"         { ADJ_HEAVY }
+  | "ak'"         { ADJ_NEW }
+  | "b'alak'"     { ADJ_DIRTY }
+  | "b'alach"     { ADJ_HIDDEN }
+  | "b'ach'am"    { ADJ_TWISTED }
+  | "b'ayb'ay"    { ADJ_FEW }
+  | "b'ab'ay"     { ADJ_FEW }
+  | "saq"         { ADJ_WHITE }
+  | "q'eq"        { ADJ_BLACK }
+  | "k'ak'"       { ADJ_NEW }
+  | "naq'il"      { ADJ_TALL }
+  | "tz'aqal"     { ADJ_COMPLETE }
+  | "yab'"        { ADJ_SICK }
+  | "sib'ik"      { ADJ_COLD }
+  | "q'ab'ar"     { ADJ_DRUNK }
+  | "b'ihom"      { ADJ_RICH }
+  | "B'ihom"      { ADJ_RICH }
+  | "b'aqb'aq"    { ADJ_THIN }
+  | "b'aqx"       { ADJ_WET }
+  | "b'ach'b'ach'" { ADJ_ARROGANT }
+  | "chaab'il"    { ADJ_BEAUTIFUL }
+  | "Chaab'il"    { ADJ_BEAUTIFUL }
+  | "jwal nim"    { ADJ_GREAT }
+  | "tz'aqal"     { ADJ_COMPLETE }
+  | "Tz'aqal"     { ADJ_COMPLETE }
+  | "ral"         { ADJ_HARD }
+  | "xib'"        { ADJ_AFRAID }
+  | "loq'al"      { ADJ_LOVED }
+  | "k'ux"        { ADJ_PAINFUL }
+  | "q'an"        { ADJ_YELLOW }
+  | "chiq"        { ADJ_RED }
+  | "b'alach"     { ADJ_HIDDEN }
+  | "b'alak'"     { ADJ_DIRTY }
+  | "rixb'al"     { ADJ_PROUD }
+  | "tojtob'"     { ADJ_STRAIGHT }
+  | "sa'q"        { ADJ_CLEAR }
+  | "q'ij"        { ADJ_SUNNY }
+  (* ── Adjetivos de los ejemplos reales ──────────────────────── *)
+  | "sa"          { ADJ_DELICIOUS }
+  | "Sa"          { ADJ_DELICIOUS }
+  | "aanil"       { ADJ_FAST }
+  | "Aanil"       { ADJ_FAST }
+  | "yib'"        { ADJ_UGLY }
+  | "Yib'"        { ADJ_UGLY }
+  | "mama'"       { ADJ_OLD }
+  | "Mama'"       { ADJ_OLD }
+  | "puqul"       { ADJ_BURST }
+  | "pomb'il"     { ADJ_ROASTED }
+  | "k'ach'in"    { ADJ_TINY }
+  | "K'ach'in"    { ADJ_TINY }
+  | "naj"         { ADJ_TALL }
+  | "Naj"         { ADJ_TALL }
+  | "ch'inaus"    { ADJ_NICE }
+  | "Ch'inaus"    { ADJ_NICE }
+  | "B'antiox"    { ADV_THANKS }
+  | "b'antiox"    { ADV_THANKS }
+  | "ra"          { ADJ_PAINFUL }
+  | "Ra"          { ADJ_PAINFUL }
+
+  (* ── Adverbios ───────────────────────────────────────────────── *)
+  | "anaqwan"     { ADV_NOW }
+  | "Anaqwan"     { ADV_NOW }
+  | "aran"        { ADV_THERE }
+  | "Aran"        { ADV_THERE }
+  | "arin"        { ADV_HERE }
+  | "sa'in"       { ADV_HERE }
+  | "anchal"      { ADV_ALL }
+  | "Anchal"      { ADV_ALL }
+  | "b'anyox"     { ADV_THANKS }
+  | "B'anyox"     { ADV_THANKS }
+  | "wi'"         { ADV_ALSO }
+  | "Wi'"         { ADV_ALSO }
+  | "chik"        { ADV_ALREADY }
+  | "Chik"        { ADV_ALREADY }
+  | "moko"        { ADV_NOT_YET }
+  | "Moko"        { ADV_NOT_YET }
+  | "nake'"       { ADV_PRESENT }
+  | "Nake'"       { ADV_PRESENT }
+  | "junes"       { ADV_TOMORROW }
+  | "Junes"       { ADV_TOMORROW }
+  | "ewer"        { ADV_YESTERDAY }
+  | "Ewer"        { ADV_YESTERDAY }
+  | "hoonal"      { ADV_WHEN }
+  | "Hoonal"      { ADV_WHEN }
+  | "b'ar"        { ADV_WHERE }
+  | "B'ar"        { ADV_WHERE }
+  | "ani"         { ADV_WHO }
+  | "Ani"         { ADV_WHO }
+  | "naab'al"     { ADV_HOW_MANY }
+
+  (* ── Preposiciones adicionales ───────────────────────────────── *)
+  | "toj"         { PREP_TO }
+  | "Toj"         { PREP_TO }
+  | "rix"         { PREP_ABOUT }
+  | "Rix"         { PREP_ABOUT }
+  | "chi ru"      { PREP_AGAINST }
+  | "ruk'"        { PREP_WITH }
+  | "Ruk'"        { PREP_WITH }
+
+  (* ── Conjunciones adicionales ────────────────────────────────── *)
+  | "ab'an"       { CONJ_BUT }
+  | "Ab'an"       { CONJ_BUT }
+  | "ab'anan"     { CONJ_HOWEVER }
+  | "Ab'anan"     { CONJ_HOWEVER }
+  | "ta"          { CONJ_WHEN }
+  | "Ta"          { CONJ_WHEN }
+
+  (* ── Marcadores de tiempo verbal ────────────────────────────── *)
+  | "naq"         { COMP_THAT }
+  | "Naq"         { COMP_THAT }
+
+  (* ── Números ─────────────────────────────────────────────────── *)
+  (* jun/Jun ya definidos arriba como ADJ_ONE *)
+  | "keb'"        { NUM_TWO }
+  | "oxib'"       { NUM_THREE }
+  | "kahib'"      { NUM_FOUR }
+  | "ho'ob'"      { NUM_FIVE }
+  | "waqib'"      { NUM_SIX }
+  | "wuqub'"      { NUM_SEVEN }
+  | "waqxaqib'"   { NUM_EIGHT }
+  | "b'eleeb'"    { NUM_NINE }
+  | "lajuneb'"    { NUM_TEN }
+  | "lajukab'"    { NUM_ELEVEN }
+  | "lajuoxib'"   { NUM_TWELVE }
+  | "kajlaju"     { NUM_TWENTY }
+  | "oxlaju"      { NUM_THIRTY }
+  | "b'eleelaju"  { NUM_NINETEEN }
+  | "oxlajuneb'"  { NUM_THIRTEEN }
+  | "kahlajuneb'" { NUM_FOURTEEN }
+  | "ho'lajuneb'" { NUM_FIFTEEN }
+  | "waqlaguneb'" { NUM_SIXTEEN }
+  | "wuqlajuneb'" { NUM_SEVENTEEN }
+  | "waqxaqlajuneb'" { NUM_EIGHTEEN }
+
+  (* ── Nombres propios ────────────────────────────────────────── *)
+  | "Kob'an"      { PROPER_NOUN }
+  | "Karcha"      { PROPER_NOUN }
+  | "Watemaal"    { PROPER_NOUN }
+  | "Belice"      { PROPER_NOUN }
+  | "Kalich"      { PROPER_NOUN }
+  | "Xmar"        { PROPER_NOUN }
+  | "B'ex"        { PROPER_NOUN }
+
+  (* ── Catch-all: cualquier otra palabra ─────────────────────── *)
+  (* Bug fix: era {word}+ (incorrecto), ahora es {word} *)
+  | {word}        { WORD }
+
+  (* ── Puntuación ─────────────────────────────────────────────── *)
+  | "."           { PERIOD }
+  | ","           { COMMA }
+  | "?"           { QUESTION }

@@ -1,0 +1,37 @@
+public class Control {
+    public static int buscarMax(int a, int b, int c) {
+        int max = a ;
+        if (b > max) {
+            max = b ;
+        }
+        if (c > max) {
+            max = c ;
+        }
+        return max ;
+    }
+
+    public static int sumatoria(int n) {
+        int sum = 0 ;
+        int i = 1 ;
+        while (i <= n) {
+            sum = sum + i ;
+            i++ ;
+        }
+        return sum ;
+    }
+
+    public static int potencia(int base, int exp) {
+        int resultado = 1 ;
+        for (int i = 0; i < exp; i++) {
+            resultado = resultado * base ;
+        }
+        return resultado ;
+    }
+
+    public static void main() {
+        int m = buscarMax(3, 7, 2) ;
+        int s = sumatoria(10) ;
+        int p = potencia(2, 8) ;
+        boolean cond = m > s || p < 100 ;
+    }
+}

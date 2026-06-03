@@ -44,7 +44,8 @@ public:
     int    getGoto(int state, const std::string& nonTerminal) const;
 
     bool hasConflicts() const { return !conflicts_.empty(); }
-    const std::vector<Conflict>& getConflicts() const { return conflicts_; }
+    const std::vector<Conflict>& getConflicts()         const { return conflicts_; }
+    const std::vector<Conflict>& getResolvedConflicts() const { return resolvedConflicts_; }
 
     std::string toJSON() const;
     void        print()  const;
@@ -53,6 +54,7 @@ private:
     std::map<int, std::map<std::string, Action>> action_;
     std::map<int, std::map<std::string, int>>    goto_;
     std::vector<Conflict>                        conflicts_;
+    std::vector<Conflict>                        resolvedConflicts_;
     const LR0Automaton*                          automaton_ = nullptr;
 
     // lookaheads_[estado][item] = conjunto de lookaheads
